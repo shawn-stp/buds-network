@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { mockUsers, mockPosts, currentUserId } from '@/data/mockData';
@@ -9,6 +10,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const imageSize = (screenWidth - 48) / 3;
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'posts' | 'about'>('posts');
   const currentUser = mockUsers.find(u => u.id === currentUserId);
   const userPosts = mockPosts.filter(p => p.userId === currentUserId);
@@ -17,6 +19,21 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>Profile</Text>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => router.push('/settings')}
+        >
+          <IconSymbol
+            ios_icon_name="gearshape"
+            android_material_icon_name="settings"
+            size={24}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
@@ -144,11 +161,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 48 : 20,
+    paddingBottom: 16,
+    backgroundColor: colors.card,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.05)',
+    elevation: 2,
+  },
+  topBarTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  settingsButton: {
+    padding: 8,
+  },
   scrollView: {
     flex: 1,
   },
   contentContainer: {
-    paddingTop: Platform.OS === 'android' ? 48 : 0,
     paddingBottom: 100,
   },
   header: {

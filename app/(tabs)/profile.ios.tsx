@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -10,6 +10,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const imageSize = (screenWidth - 48) / 3;
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'posts' | 'about'>('posts');
   const currentUser = mockUsers.find(u => u.id === currentUserId);
   const userPosts = mockPosts.filter(p => p.userId === currentUserId);
@@ -22,6 +23,19 @@ export default function ProfileScreen() {
         options={{
           title: 'Profile',
           headerLargeTitle: true,
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => router.push('/settings')}
+              style={{ marginRight: 8 }}
+            >
+              <IconSymbol
+                ios_icon_name="gearshape"
+                android_material_icon_name="settings"
+                size={24}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          ),
         }}
       />
       <View style={styles.container}>

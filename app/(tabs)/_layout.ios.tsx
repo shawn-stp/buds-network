@@ -14,6 +14,10 @@ export default function TabLayout() {
         <Icon sf="person.2.fill" />
         <Label>Buds</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger key="discovery" name="discovery">
+        <Icon sf="safari.fill" />
+        <Label>Discover</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger key="messages" name="messages">
         <Icon sf="message.fill" />
         <Label>Messages</Label>

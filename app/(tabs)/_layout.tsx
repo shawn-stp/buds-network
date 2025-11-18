@@ -19,6 +19,12 @@ export default function TabLayout() {
       label: 'Buds',
     },
     {
+      name: 'discovery',
+      route: '/(tabs)/discovery',
+      icon: 'compass',
+      label: 'Discover',
+    },
+    {
       name: 'messages',
       route: '/(tabs)/messages',
       icon: 'chatbubbles',
@@ -42,10 +48,11 @@ export default function TabLayout() {
       >
         <Stack.Screen key="home" name="(home)" />
         <Stack.Screen key="buds" name="buds" />
+        <Stack.Screen key="discovery" name="discovery" />
         <Stack.Screen key="messages" name="messages" />
         <Stack.Screen key="profile" name="profile" />
       </Stack>
-      <FloatingTabBar tabs={tabs} containerWidth={340} />
+      <FloatingTabBar tabs={tabs} containerWidth={420} />
     </>
   );
 }
