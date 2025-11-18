@@ -48,3 +48,24 @@ export type ProductFilter = {
   };
   types: string[];
 };
+
+export interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: Date;
+  isRead: boolean;
+}
+
+export interface Conversation {
+  id: string;
+  name: string;
+  avatar: string;
+  isGroup: boolean;
+  participants: string[];
+  lastMessage: string;
+  lastMessageTime: Date;
+  unreadCount: number;
+  messages: Message[];
+}

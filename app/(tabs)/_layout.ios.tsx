@@ -14,9 +14,9 @@ export default function TabLayout() {
         <Icon sf="person.2.fill" />
         <Label>Buds</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="products" name="products">
-        <Icon sf="bag.fill" />
-        <Label>Products</Label>
+      <NativeTabs.Trigger key="messages" name="messages">
+        <Icon sf="message.fill" />
+        <Label>Messages</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="profile" name="profile">
         <Icon sf="person.fill" />

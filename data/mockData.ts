@@ -1,5 +1,5 @@
 
-import { User, Post, Product } from '@/types';
+import { User, Post, Product, Conversation } from '@/types';
 
 export const mockUsers: User[] = [
   {
@@ -211,6 +211,153 @@ export const mockProducts: Product[] = [
     price: 5000,
     type: 'Service',
     images: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
+  },
+];
+
+export const mockConversations: Conversation[] = [
+  {
+    id: 'conv1',
+    name: 'GreenLeaf Industries',
+    avatar: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=400',
+    isGroup: false,
+    participants: ['1', '2'],
+    lastMessage: 'Thanks for the info about the cloud platform!',
+    lastMessageTime: new Date(Date.now() - 1000 * 60 * 15),
+    unreadCount: 2,
+    messages: [
+      {
+        id: 'm1',
+        senderId: '1',
+        senderName: 'TechFlow Solutions',
+        content: 'Hi! I saw your post about sustainable packaging. Very impressive!',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
+        isRead: true,
+      },
+      {
+        id: 'm2',
+        senderId: '2',
+        senderName: 'GreenLeaf Industries',
+        content: 'Thank you! We&apos;re really proud of it. How can I help you?',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60),
+        isRead: true,
+      },
+      {
+        id: 'm3',
+        senderId: '1',
+        senderName: 'TechFlow Solutions',
+        content: 'I&apos;d love to learn more about your packaging solutions for our product shipments.',
+        timestamp: new Date(Date.now() - 1000 * 60 * 30),
+        isRead: true,
+      },
+      {
+        id: 'm4',
+        senderId: '2',
+        senderName: 'GreenLeaf Industries',
+        content: 'Thanks for the info about the cloud platform!',
+        timestamp: new Date(Date.now() - 1000 * 60 * 15),
+        isRead: false,
+      },
+    ],
+  },
+  {
+    id: 'conv2',
+    name: 'Innovate Labs',
+    avatar: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=400',
+    isGroup: false,
+    participants: ['1', '3'],
+    lastMessage: 'Let&apos;s schedule a call next week',
+    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 3),
+    unreadCount: 0,
+    messages: [
+      {
+        id: 'm5',
+        senderId: '3',
+        senderName: 'Innovate Labs',
+        content: 'Hey! Interested in collaborating on AI projects?',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
+        isRead: true,
+      },
+      {
+        id: 'm6',
+        senderId: '1',
+        senderName: 'TechFlow Solutions',
+        content: 'Absolutely! We&apos;ve been looking for AI research partners.',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
+        isRead: true,
+      },
+      {
+        id: 'm7',
+        senderId: '3',
+        senderName: 'Innovate Labs',
+        content: 'Let&apos;s schedule a call next week',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
+        isRead: true,
+      },
+    ],
+  },
+  {
+    id: 'conv3',
+    name: 'BuildRight Construction',
+    avatar: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400',
+    isGroup: false,
+    participants: ['1', '4'],
+    lastMessage: 'Great! I&apos;ll send over the details.',
+    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 24),
+    unreadCount: 0,
+    messages: [
+      {
+        id: 'm8',
+        senderId: '1',
+        senderName: 'TechFlow Solutions',
+        content: 'We need consultation for our new office building.',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 25),
+        isRead: true,
+      },
+      {
+        id: 'm9',
+        senderId: '4',
+        senderName: 'BuildRight Construction',
+        content: 'Great! I&apos;ll send over the details.',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
+        isRead: true,
+      },
+    ],
+  },
+  {
+    id: 'conv4',
+    name: 'Tech Partners Group',
+    avatar: '',
+    isGroup: true,
+    participants: ['1', '2', '3'],
+    lastMessage: 'Looking forward to the collaboration!',
+    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 48),
+    unreadCount: 5,
+    messages: [
+      {
+        id: 'm10',
+        senderId: '2',
+        senderName: 'GreenLeaf Industries',
+        content: 'Welcome everyone to the Tech Partners group!',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 50),
+        isRead: true,
+      },
+      {
+        id: 'm11',
+        senderId: '3',
+        senderName: 'Innovate Labs',
+        content: 'Excited to be here!',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 49),
+        isRead: true,
+      },
+      {
+        id: 'm12',
+        senderId: '1',
+        senderName: 'TechFlow Solutions',
+        content: 'Looking forward to the collaboration!',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48),
+        isRead: false,
+      },
+    ],
   },
 ];
 
