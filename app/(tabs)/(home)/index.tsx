@@ -1,20 +1,49 @@
-import React from "react";
-import { FlatList, StyleSheet, View } from "react-native";
-import { useTheme } from "@react-navigation/native";
-import { modalDemos } from "@/components/homeData";
-import { DemoCard } from "@/components/DemoCard";
+
+import React, { useState } from 'react';
+import { View, StyleSheet, FlatList, Text, Platform } from 'react-native';
+import { colors } from '@/styles/commonStyles';
+import { PostCard } from '@/components/PostCard';
+import { mockPosts, currentUserId } from '@/data/mockData';
+import { Post } from '@/types';
 
 export default function HomeScreen() {
-  const theme = useTheme();
+  const [posts, setPosts] = useState<Post[]>(mockPosts);
+
+  const handleLike = (postId: string) => {
+    setPosts(prevPosts =>
+      prevPosts.map(post => {
+        if (post.id === postId) {
+          const isLiked = post.likes.includes(currentUserId);
+          return {
+            ...post,
+            likes: isLiked
+              ? post.likes.filter(id => id !== currentUserId)
+              : [...post.likes, currentUserId],
+          };
+        }
+        return post;
+      })
+    );
+  };
+
+  const handleComment = (postId: string) => {
+    console.log('Open comments for post:', postId);
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={styles.container}>
       <FlatList
-        data={modalDemos}
-        renderItem={({ item }) => <DemoCard item={item} />}
-        keyExtractor={(item) => item.route}
+        data={posts}
+        renderItem={({ item }) => (
+          <PostCard
+            post={item}
+            onLike={handleLike}
+            onComment={handleComment}
+            currentUserId={currentUserId}
+          />
+        )}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
-        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -24,10 +53,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   listContainer: {
-    paddingTop: 48,
+    paddingTop: Platform.OS === 'android' ? 48 : 16,
     paddingHorizontal: 16,
-    paddingBottom: 100, // Extra padding for floating tab bar
+    paddingBottom: 100,
   },
 });
