@@ -1,13 +1,30 @@
 
-import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, Text, Platform } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, StyleSheet, FlatList, Platform } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { PostCard } from '@/components/PostCard';
-import { mockPosts, currentUserId } from '@/data/mockData';
+import { SegmentedControl } from '@/components/SegmentedControl';
+import { mockPosts, currentUserId, mockUsers } from '@/data/mockData';
 import { Post } from '@/types';
 
 export default function HomeScreen() {
   const [posts, setPosts] = useState<Post[]>(mockPosts);
+  const [selectedSegment, setSelectedSegment] = useState(0);
+
+  // Get the current user's following list
+  const currentUser = mockUsers.find(user => user.id === currentUserId);
+  const followingIds = currentUser?.following || [];
+
+  // Filter posts based on selected segment
+  const filteredPosts = useMemo(() => {
+    if (selectedSegment === 0) {
+      // All posts
+      return posts;
+    } else {
+      // Only posts from businesses the user follows
+      return posts.filter(post => followingIds.includes(post.userId));
+    }
+  }, [posts, selectedSegment, followingIds]);
 
   const handleLike = (postId: string) => {
     setPosts(prevPosts =>
@@ -32,8 +49,13 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <SegmentedControl
+        segments={['All Posts', 'Following']}
+        selectedIndex={selectedSegment}
+        onIndexChange={setSelectedSegment}
+      />
       <FlatList
-        data={posts}
+        data={filteredPosts}
         renderItem={({ item }) => (
           <PostCard
             post={item}
@@ -56,7 +78,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   listContainer: {
-    paddingTop: Platform.OS === 'android' ? 48 : 16,
+    paddingTop: Platform.OS === 'android' ? 8 : 0,
     paddingHorizontal: 16,
     paddingBottom: 100,
   },
