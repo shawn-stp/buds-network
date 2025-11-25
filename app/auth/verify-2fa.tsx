@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { get2FASecret, verifyTOTP } from '@/utils/authUtils';
+import { generateEmailVerificationCode, sendVerificationEmail, verifyEmailCode } from '@/utils/authUtils';
 
 export default function Verify2FAScreen() {
   const router = useRouter();
@@ -21,6 +21,31 @@ export default function Verify2FAScreen() {
   
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  useEffect(() => {
+    // Automatically send email when component mounts
+    handleSendEmail();
+  }, []);
+
+  const handleSendEmail = async () => {
+    setIsSendingEmail(true);
+    
+    // Generate a 6-digit code
+    const code = generateEmailVerificationCode();
+    
+    // Send email (simulated)
+    const success = await sendVerificationEmail(email as string, code);
+    
+    if (success) {
+      setEmailSent(true);
+    } else {
+      Alert.alert('Error', 'Failed to send verification email. Please try again.');
+    }
+    
+    setIsSendingEmail(false);
+  };
 
   const handleVerify = async () => {
     if (verificationCode.length !== 6) {
@@ -30,30 +55,35 @@ export default function Verify2FAScreen() {
 
     setIsVerifying(true);
 
-    // In production, retrieve the user's 2FA secret from secure storage
-    // For demo purposes, we'll simulate verification
-    const mockUserId = 'user_mock';
-    const secret = await get2FASecret(mockUserId);
+    // Verify the code
+    const isValid = await verifyEmailCode(email as string, verificationCode);
 
-    // Simulate verification delay
-    setTimeout(() => {
-      // For demo, accept any 6-digit code
-      const isValid = verificationCode.length === 6;
-
-      if (isValid) {
-        console.log('2FA verification successful');
-        router.replace('/(tabs)');
-      } else {
-        Alert.alert('Error', 'Invalid verification code. Please try again.');
-        setVerificationCode('');
-      }
-      
-      setIsVerifying(false);
-    }, 1000);
+    if (isValid) {
+      console.log('2FA verification successful');
+      router.replace('/(tabs)');
+    } else {
+      Alert.alert('Error', 'Invalid or expired verification code. Please try again or request a new code.');
+      setVerificationCode('');
+    }
+    
+    setIsVerifying(false);
   };
 
   const handleResendCode = () => {
-    Alert.alert('Code Sent', 'A new verification code has been sent to your authenticator app.');
+    Alert.alert(
+      'Resend Code?',
+      'Do you want to receive a new verification code?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Resend',
+          onPress: () => {
+            setVerificationCode('');
+            handleSendEmail();
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -70,18 +100,36 @@ export default function Verify2FAScreen() {
           <View style={styles.header}>
             <View style={styles.iconContainer}>
               <IconSymbol
-                ios_icon_name="lock.shield"
-                android_material_icon_name="security"
+                ios_icon_name="envelope.badge.shield.half.filled"
+                android_material_icon_name="mark-email-read"
                 size={48}
                 color={colors.primary}
               />
             </View>
             <Text style={styles.title}>Two-Factor Authentication</Text>
             <Text style={styles.subtitle}>
-              Enter the 6-digit code from your authenticator app
+              Enter the 6-digit code sent to your email
             </Text>
             <Text style={styles.email}>{email}</Text>
           </View>
+
+          {!emailSent && isSendingEmail && (
+            <View style={styles.loadingCard}>
+              <Text style={styles.loadingText}>Sending verification code...</Text>
+            </View>
+          )}
+
+          {emailSent && (
+            <View style={styles.successCard}>
+              <IconSymbol
+                ios_icon_name="checkmark.circle.fill"
+                android_material_icon_name="check-circle"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={styles.successText}>Code sent to your email!</Text>
+            </View>
+          )}
 
           <View style={styles.form}>
             <View style={styles.codeInputContainer}>
@@ -99,22 +147,34 @@ export default function Verify2FAScreen() {
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="number-pad"
                 maxLength={6}
-                autoFocus
+                autoFocus={emailSent}
               />
             </View>
 
             <TouchableOpacity
               style={[styles.verifyButton, isVerifying && styles.verifyButtonDisabled]}
               onPress={handleVerify}
-              disabled={isVerifying}
+              disabled={isVerifying || !emailSent}
             >
               <Text style={styles.verifyButtonText}>
                 {isVerifying ? 'Verifying...' : 'Verify & Sign In'}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.resendButton} onPress={handleResendCode}>
-              <Text style={styles.resendButtonText}>Having trouble? Get help</Text>
+            <TouchableOpacity
+              style={styles.resendButton}
+              onPress={handleResendCode}
+              disabled={isSendingEmail}
+            >
+              <IconSymbol
+                ios_icon_name="arrow.clockwise"
+                android_material_icon_name="refresh"
+                size={16}
+                color={colors.primary}
+              />
+              <Text style={styles.resendButtonText}>
+                {isSendingEmail ? 'Sending...' : 'Resend Code'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -126,7 +186,7 @@ export default function Verify2FAScreen() {
               color={colors.primary}
             />
             <Text style={styles.infoText}>
-              Open your authenticator app and enter the current 6-digit code to continue.
+              Check your email inbox for the verification code. The code will expire in 10 minutes.
             </Text>
           </View>
         </View>
@@ -148,7 +208,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   iconContainer: {
     width: 80,
@@ -176,6 +236,35 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   email: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  loadingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  successCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  successText: {
     fontSize: 14,
     color: colors.primary,
     fontWeight: '600',
@@ -218,8 +307,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   resendButton: {
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
   },
   resendButtonText: {
     fontSize: 14,

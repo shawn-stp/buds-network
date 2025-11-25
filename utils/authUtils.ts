@@ -2,7 +2,88 @@
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 
-// Generate a random secret for TOTP
+// Generate a random 6-digit code
+export const generateEmailVerificationCode = (): string => {
+  const code = Math.floor(100000 + Math.random() * 900000);
+  return code.toString();
+};
+
+// Store verification code with timestamp
+export const storeVerificationCode = async (email: string, code: string): Promise<void> => {
+  try {
+    const data = {
+      code,
+      timestamp: Date.now(),
+      expiresIn: 10 * 60 * 1000, // 10 minutes
+    };
+    await SecureStore.setItemAsync(`verification_code_${email}`, JSON.stringify(data));
+    console.log('Verification code stored');
+  } catch (error) {
+    console.error('Error storing verification code:', error);
+  }
+};
+
+// Retrieve and verify code
+export const verifyEmailCode = async (email: string, inputCode: string): Promise<boolean> => {
+  try {
+    const storedData = await SecureStore.getItemAsync(`verification_code_${email}`);
+    if (!storedData) {
+      console.log('No verification code found');
+      return false;
+    }
+
+    const { code, timestamp, expiresIn } = JSON.parse(storedData);
+    const now = Date.now();
+
+    // Check if code has expired
+    if (now - timestamp > expiresIn) {
+      console.log('Verification code expired');
+      await SecureStore.deleteItemAsync(`verification_code_${email}`);
+      return false;
+    }
+
+    // Verify code
+    const isValid = code === inputCode;
+    if (isValid) {
+      // Delete code after successful verification
+      await SecureStore.deleteItemAsync(`verification_code_${email}`);
+    }
+
+    return isValid;
+  } catch (error) {
+    console.error('Error verifying code:', error);
+    return false;
+  }
+};
+
+// Simulate sending email (in production, use a real email service)
+export const sendVerificationEmail = async (email: string, code: string): Promise<boolean> => {
+  try {
+    console.log('='.repeat(50));
+    console.log('📧 SIMULATED EMAIL SENT');
+    console.log('='.repeat(50));
+    console.log(`To: ${email}`);
+    console.log(`Subject: Your Buds Verification Code`);
+    console.log('');
+    console.log('Your verification code is:');
+    console.log('');
+    console.log(`    ${code}`);
+    console.log('');
+    console.log('This code will expire in 10 minutes.');
+    console.log('If you did not request this code, please ignore this email.');
+    console.log('='.repeat(50));
+    
+    // Store the code
+    await storeVerificationCode(email, code);
+    
+    return true;
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    return false;
+  }
+};
+
+// Generate a random secret for TOTP (kept for backward compatibility)
 export const generateTOTPSecret = async (): Promise<string> => {
   const randomBytes = await Crypto.getRandomBytesAsync(20);
   return base32Encode(randomBytes);

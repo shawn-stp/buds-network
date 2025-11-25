@@ -13,29 +13,46 @@ import {
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { generateTOTPSecret, generateQRCodeData, store2FASecret, verifyTOTP } from '@/utils/authUtils';
+import { generateEmailVerificationCode, sendVerificationEmail, verifyEmailCode } from '@/utils/authUtils';
 
 export default function Setup2FAScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { email, companyName } = params;
   
-  const [secret, setSecret] = useState('');
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState('');
 
   useEffect(() => {
-    initializeTOTP();
+    // Automatically send email when component mounts
+    handleSendEmail();
   }, []);
 
-  const initializeTOTP = async () => {
-    const newSecret = await generateTOTPSecret();
-    setSecret(newSecret);
-    const qrUrl = generateQRCodeData(newSecret, email as string);
-    setQrCodeUrl(qrUrl);
-    console.log('TOTP Secret:', newSecret);
-    console.log('QR Code URL:', qrUrl);
+  const handleSendEmail = async () => {
+    setIsSendingEmail(true);
+    
+    // Generate a 6-digit code
+    const code = generateEmailVerificationCode();
+    setGeneratedCode(code);
+    
+    // Send email (simulated)
+    const success = await sendVerificationEmail(email as string, code);
+    
+    if (success) {
+      setEmailSent(true);
+      Alert.alert(
+        'Email Sent!',
+        `A verification code has been sent to ${email}. Please check your email and enter the code below.`,
+        [{ text: 'OK' }]
+      );
+    } else {
+      Alert.alert('Error', 'Failed to send verification email. Please try again.');
+    }
+    
+    setIsSendingEmail(false);
   };
 
   const handleVerify = async () => {
@@ -46,14 +63,10 @@ export default function Setup2FAScreen() {
 
     setIsVerifying(true);
 
-    // Verify the TOTP code
-    const isValid = verifyTOTP(secret, verificationCode);
+    // Verify the code
+    const isValid = await verifyEmailCode(email as string, verificationCode);
 
     if (isValid) {
-      // Store the secret securely
-      const mockUserId = 'user_' + Date.now();
-      await store2FASecret(mockUserId, secret);
-      
       Alert.alert(
         'Success!',
         'Two-factor authentication has been enabled for your account.',
@@ -68,11 +81,28 @@ export default function Setup2FAScreen() {
         ]
       );
     } else {
-      Alert.alert('Error', 'Invalid verification code. Please try again.');
+      Alert.alert('Error', 'Invalid or expired verification code. Please try again or request a new code.');
       setVerificationCode('');
     }
 
     setIsVerifying(false);
+  };
+
+  const handleResendCode = () => {
+    Alert.alert(
+      'Resend Code?',
+      'Do you want to receive a new verification code?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Resend',
+          onPress: () => {
+            setVerificationCode('');
+            handleSendEmail();
+          },
+        },
+      ]
+    );
   };
 
   const handleSkip = () => {
@@ -110,60 +140,48 @@ export default function Setup2FAScreen() {
         <View style={styles.header}>
           <View style={styles.iconContainer}>
             <IconSymbol
-              ios_icon_name="lock.shield"
-              android_material_icon_name="security"
+              ios_icon_name="envelope.badge.shield.half.filled"
+              android_material_icon_name="mark-email-read"
               size={48}
               color={colors.primary}
             />
           </View>
           <Text style={styles.title}>Secure Your Account</Text>
           <Text style={styles.subtitle}>
-            Set up two-factor authentication to add an extra layer of security
+            We&apos;ve sent a verification code to your email address
           </Text>
+          <Text style={styles.email}>{email}</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Step 1: Install an Authenticator App</Text>
+          <Text style={styles.sectionTitle}>Check Your Email</Text>
           <Text style={styles.description}>
-            Download an authenticator app like Google Authenticator, Authy, or Microsoft Authenticator on your mobile device.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Step 2: Scan QR Code</Text>
-          <Text style={styles.description}>
-            Open your authenticator app and scan this QR code:
+            A 6-digit verification code has been sent to your email address. The code will expire in 10 minutes.
           </Text>
           
-          <View style={styles.qrCodeContainer}>
-            <View style={styles.qrCodePlaceholder}>
-              <IconSymbol
-                ios_icon_name="qrcode"
-                android_material_icon_name="qr-code"
-                size={120}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.qrCodeNote}>
-                In a production app, this would display an actual QR code
-              </Text>
+          {!emailSent && isSendingEmail && (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Sending email...</Text>
             </View>
-          </View>
+          )}
 
-          <View style={styles.secretContainer}>
-            <Text style={styles.secretLabel}>Or enter this code manually:</Text>
-            <View style={styles.secretBox}>
-              <Text style={styles.secretText}>{secret}</Text>
+          {emailSent && (
+            <View style={styles.successContainer}>
+              <IconSymbol
+                ios_icon_name="checkmark.circle.fill"
+                android_material_icon_name="check-circle"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={styles.successText}>Email sent successfully!</Text>
             </View>
-            <Text style={styles.secretNote}>
-              Save this code in a secure place. You&apos;ll need it to recover your account if you lose access to your authenticator app.
-            </Text>
-          </View>
+          )}
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Step 3: Enter Verification Code</Text>
+          <Text style={styles.sectionTitle}>Enter Verification Code</Text>
           <Text style={styles.description}>
-            Enter the 6-digit code from your authenticator app:
+            Enter the 6-digit code from your email:
           </Text>
           
           <View style={styles.codeInputContainer}>
@@ -181,19 +199,47 @@ export default function Setup2FAScreen() {
               placeholderTextColor={colors.textSecondary}
               keyboardType="number-pad"
               maxLength={6}
-              autoFocus
+              autoFocus={emailSent}
             />
           </View>
 
           <TouchableOpacity
             style={[styles.verifyButton, isVerifying && styles.verifyButtonDisabled]}
             onPress={handleVerify}
-            disabled={isVerifying}
+            disabled={isVerifying || !emailSent}
           >
             <Text style={styles.verifyButtonText}>
               {isVerifying ? 'Verifying...' : 'Verify & Enable 2FA'}
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.resendButton}
+            onPress={handleResendCode}
+            disabled={isSendingEmail}
+          >
+            <IconSymbol
+              ios_icon_name="arrow.clockwise"
+              android_material_icon_name="refresh"
+              size={16}
+              color={colors.primary}
+            />
+            <Text style={styles.resendButtonText}>
+              {isSendingEmail ? 'Sending...' : 'Resend Code'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.infoCard}>
+          <IconSymbol
+            ios_icon_name="info.circle"
+            android_material_icon_name="info"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.infoText}>
+            Didn&apos;t receive the email? Check your spam folder or click &quot;Resend Code&quot; to receive a new one.
+          </Text>
         </View>
 
         <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
@@ -241,6 +287,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 8,
+  },
+  email: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
   },
   card: {
     backgroundColor: colors.card,
@@ -261,56 +313,30 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 20,
   },
-  qrCodeContainer: {
+  loadingContainer: {
     marginTop: 16,
-    alignItems: 'center',
-  },
-  qrCodePlaceholder: {
-    width: 200,
-    height: 200,
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
     padding: 16,
-  },
-  qrCodeNote: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  secretContainer: {
-    marginTop: 20,
-  },
-  secretLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  secretBox: {
     backgroundColor: colors.background,
     borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    alignItems: 'center',
   },
-  secretText: {
-    fontSize: 16,
-    fontFamily: 'SpaceMono',
-    color: colors.text,
-    textAlign: 'center',
-    letterSpacing: 2,
-  },
-  secretNote: {
-    fontSize: 12,
+  loadingText: {
+    fontSize: 14,
     color: colors.textSecondary,
-    marginTop: 8,
-    fontStyle: 'italic',
+  },
+  successContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  successText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
   },
   codeInputContainer: {
     flexDirection: 'row',
@@ -346,6 +372,35 @@ const styles = StyleSheet.create({
     color: colors.card,
     fontSize: 16,
     fontWeight: '600',
+  },
+  resendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    marginTop: 12,
+  },
+  resendButtonText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  infoCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 20,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
   skipButton: {
     paddingVertical: 16,
