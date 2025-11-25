@@ -42,33 +42,35 @@ export default function WelcomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.features}>
-          <View style={styles.feature}>
-            <IconSymbol
-              ios_icon_name="person.2.fill"
-              android_material_icon_name="people"
-              size={24}
-              color={colors.primary}
-            />
-            <Text style={styles.featureText}>Connect with businesses</Text>
-          </View>
-          <View style={styles.feature}>
-            <IconSymbol
-              ios_icon_name="square.grid.2x2.fill"
-              android_material_icon_name="grid-view"
-              size={24}
-              color={colors.primary}
-            />
-            <Text style={styles.featureText}>Showcase your products</Text>
-          </View>
-          <View style={styles.feature}>
-            <IconSymbol
-              ios_icon_name="message.fill"
-              android_material_icon_name="message"
-              size={24}
-              color={colors.primary}
-            />
-            <Text style={styles.featureText}>Direct messaging</Text>
+        <View style={styles.featuresContainer}>
+          <View style={styles.features}>
+            <View style={styles.feature}>
+              <IconSymbol
+                ios_icon_name="person.2.fill"
+                android_material_icon_name="people"
+                size={32}
+                color={colors.primary}
+              />
+              <Text style={styles.featureText}>Connect with businesses</Text>
+            </View>
+            <View style={styles.feature}>
+              <IconSymbol
+                ios_icon_name="square.grid.2x2.fill"
+                android_material_icon_name="grid-view"
+                size={32}
+                color={colors.primary}
+              />
+              <Text style={styles.featureText}>Showcase your products</Text>
+            </View>
+            <View style={styles.feature}>
+              <IconSymbol
+                ios_icon_name="message.fill"
+                android_material_icon_name="message"
+                size={32}
+                color={colors.primary}
+              />
+              <Text style={styles.featureText}>Direct messaging</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -87,6 +89,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 40,
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   header: {
     alignItems: 'center',
@@ -118,6 +121,9 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     gap: 16,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
   },
   primaryButton: {
     backgroundColor: colors.primary,
@@ -126,6 +132,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     boxShadow: '0px 2px 8px rgba(0, 122, 255, 0.3)',
     elevation: 3,
+    width: '100%',
+    maxWidth: 400,
   },
   primaryButtonText: {
     color: colors.card,
@@ -139,28 +147,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.primary,
+    width: '100%',
+    maxWidth: 400,
   },
   secondaryButtonText: {
     color: colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },
+  featuresContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
   features: {
-    gap: 16,
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    maxWidth: 600,
+    justifyContent: 'center',
   },
   feature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    flex: 1,
+    aspectRatio: 1,
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
     elevation: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minWidth: 100,
+    maxWidth: 180,
   },
   featureText: {
-    fontSize: 15,
+    fontSize: 13,
     color: colors.text,
     fontWeight: '500',
+    textAlign: 'center',
   },
 });
