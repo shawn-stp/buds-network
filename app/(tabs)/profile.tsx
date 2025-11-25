@@ -223,17 +223,18 @@ export default function ProfileScreen() {
               />
               <Text style={styles.primaryButtonText}>Edit Profile</Text>
             </TouchableOpacity>
-            {profile.products_page_link && (
-              <TouchableOpacity style={styles.secondaryButton}>
-                <IconSymbol
-                  ios_icon_name="link"
-                  android_material_icon_name="link"
-                  size={18}
-                  color={colors.primary}
-                />
-                <Text style={styles.secondaryButtonText}>Products</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => router.push('/(tabs)/products')}
+            >
+              <IconSymbol
+                ios_icon_name="cube.box"
+                android_material_icon_name="inventory"
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={styles.secondaryButtonText}>Products</Text>
+            </TouchableOpacity>
           </View>
         </View>
 

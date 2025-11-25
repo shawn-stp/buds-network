@@ -281,14 +281,22 @@ export default function EditProfileScreen() {
         ]
       );
     } else {
-      // Return to profile page
-      router.replace('/(tabs)/profile');
+      // Return to profile page using back navigation
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)/profile');
+      }
     }
   };
 
   const handleBack = () => {
-    // Return to profile page
-    router.replace('/(tabs)/profile');
+    // Return to profile page using back navigation
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/profile');
+    }
   };
 
   if (isLoadingProfile) {
