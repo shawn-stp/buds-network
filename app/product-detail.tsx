@@ -15,7 +15,7 @@ interface Product {
   description: string;
   product_type: string;
   images: string[];
-  price: number;
+  price: number | null;
   created_at: string;
 }
 
@@ -105,6 +105,13 @@ export default function ProductDetailScreen() {
       pathname: '/user-profile',
       params: { userId: product.user_id }
     });
+  };
+
+  const formatPrice = (price: number | null | undefined): string => {
+    if (price === null || price === undefined || isNaN(price)) {
+      return 'Price not set';
+    }
+    return `$${price.toFixed(2)}`;
   };
 
   if (isLoading) {
@@ -220,7 +227,7 @@ export default function ProductDetailScreen() {
               <Text style={styles.productName}>{product.name}</Text>
               <Text style={styles.productType}>{product.product_type}</Text>
             </View>
-            <Text style={styles.productPrice}>${product.price.toFixed(2)}</Text>
+            <Text style={styles.productPrice}>{formatPrice(product.price)}</Text>
           </View>
 
           <View style={styles.divider} />

@@ -19,6 +19,13 @@ export function ProductCard({ product, onContact }: ProductCardProps) {
     onContact?.(product);
   };
 
+  const formatPrice = (price: number | null | undefined): string => {
+    if (price === null || price === undefined || isNaN(price)) {
+      return 'N/A';
+    }
+    return `$${price.toFixed(2)}`;
+  };
+
   return (
     <View style={styles.card}>
       <Image
@@ -30,7 +37,7 @@ export function ProductCard({ product, onContact }: ProductCardProps) {
         <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
         <Text style={styles.description} numberOfLines={2}>{product.description}</Text>
         <View style={styles.footer}>
-          <Text style={styles.price}>${product.price}</Text>
+          <Text style={styles.price}>{formatPrice(product.price)}</Text>
           <TouchableOpacity style={styles.contactButton} onPress={handleContact}>
             <IconSymbol
               ios_icon_name="envelope"
