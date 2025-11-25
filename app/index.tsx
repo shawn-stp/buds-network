@@ -40,13 +40,6 @@ export default function WelcomeScreen() {
           >
             <Text style={styles.secondaryButtonText}>Sign In</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={() => router.replace('/(tabs)')}
-          >
-            <Text style={styles.skipButtonText}>Continue as Guest</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.features}>
@@ -151,15 +144,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 16,
     fontWeight: '600',
-  },
-  skipButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
   },
   features: {
     gap: 16,
