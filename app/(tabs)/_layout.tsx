@@ -21,7 +21,7 @@ export default function TabLayout() {
     {
       name: 'discovery',
       route: '/(tabs)/discovery',
-      icon: 'compass',
+      icon: 'hiking',
       label: 'Discover',
     },
     {

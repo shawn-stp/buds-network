@@ -15,7 +15,7 @@ export default function TabLayout() {
         <Label>Buds</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="discovery" name="discovery">
-        <Icon sf="safari.fill" />
+        <Icon sf="figure.hiking" />
         <Label>Discover</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="messages" name="messages">
