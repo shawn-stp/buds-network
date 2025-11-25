@@ -172,6 +172,15 @@ export default function CommentsModal() {
     }
   };
 
+  const handleClose = () => {
+    console.log('Closing comments modal');
+    if (router.canDismiss()) {
+      router.dismiss();
+    } else {
+      router.back();
+    }
+  };
+
   const formatTimestamp = (date: Date) => {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
@@ -206,7 +215,11 @@ export default function CommentsModal() {
     >
       <View style={styles.header}>
         <Text style={styles.title}>Comments</Text>
-        <TouchableOpacity onPress={() => router.dismiss()} style={styles.closeButton}>
+        <TouchableOpacity 
+          onPress={handleClose} 
+          style={styles.closeButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <IconSymbol
             ios_icon_name="xmark"
             android_material_icon_name="close"

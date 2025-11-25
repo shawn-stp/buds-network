@@ -45,7 +45,9 @@ export default function HomeScreen() {
         return [];
       }
 
-      return data?.map(f => f.following_id) || [];
+      const followingList = data?.map(f => f.following_id) || [];
+      console.log('Following list:', followingList);
+      return followingList;
     } catch (error) {
       console.error('Error in fetchFollowing:', error);
       return [];
@@ -203,14 +205,25 @@ export default function HomeScreen() {
     }, [])
   );
 
+  // Handle segment change
+  const handleSegmentChange = useCallback((index: number) => {
+    console.log('Segment changed to:', index, index === 0 ? 'All Posts' : 'Following');
+    setSelectedSegment(index);
+  }, []);
+
   // Filter posts based on selected segment
   const filteredPosts = useMemo(() => {
+    console.log('Filtering posts - Segment:', selectedSegment, 'Total posts:', posts.length, 'Following IDs:', followingIds.length);
+    
     if (selectedSegment === 0) {
       // All posts
+      console.log('Showing all posts:', posts.length);
       return posts;
     } else {
       // Only posts from businesses the user follows
-      return posts.filter(post => followingIds.includes(post.userId));
+      const filtered = posts.filter(post => followingIds.includes(post.userId));
+      console.log('Showing following posts:', filtered.length);
+      return filtered;
     }
   }, [posts, selectedSegment, followingIds]);
 
@@ -335,7 +348,7 @@ export default function HomeScreen() {
         <SegmentedControl
           segments={['All Posts', 'Following']}
           selectedIndex={selectedSegment}
-          onIndexChange={setSelectedSegment}
+          onIndexChange={handleSegmentChange}
         />
         {filteredPosts.length === 0 ? (
           <View style={styles.emptyContainer}>
