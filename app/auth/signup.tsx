@@ -15,6 +15,7 @@ import { Stack, useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { generateCaptcha, verifyCaptcha } from '@/utils/authUtils';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -22,6 +23,8 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [captchaInput, setCaptchaInput] = useState('');
   const [captcha, setCaptcha] = useState(generateCaptcha());
   const [showPassword, setShowPassword] = useState(false);
@@ -30,6 +33,33 @@ export default function SignUpScreen() {
   const refreshCaptcha = () => {
     setCaptcha(generateCaptcha());
     setCaptchaInput('');
+  };
+
+  const calculateAge = (birthDate: Date): number => {
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
+
+  const formatDate = (date: Date): string => {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    
+    if (selectedDate) {
+      setDateOfBirth(selectedDate);
+    }
   };
 
   const handleSignUp = () => {
@@ -46,6 +76,21 @@ export default function SignUpScreen() {
 
     if (!email.includes('@')) {
       Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    if (!dateOfBirth) {
+      Alert.alert('Error', 'Please enter your date of birth');
+      return;
+    }
+
+    const age = calculateAge(dateOfBirth);
+    if (age < 21) {
+      Alert.alert(
+        'Age Requirement',
+        'You must be 21 years or older to create an account on Buds.',
+        [{ text: 'OK' }]
+      );
       return;
     }
 
@@ -66,7 +111,7 @@ export default function SignUpScreen() {
     }
 
     // Mock user creation
-    console.log('Creating account:', { companyName, email });
+    console.log('Creating account:', { companyName, email, age });
     
     // Navigate to 2FA setup
     router.push({
@@ -74,6 +119,14 @@ export default function SignUpScreen() {
       params: { email, companyName },
     });
   };
+
+  // Maximum date is 21 years ago from today
+  const maxDate = new Date();
+  maxDate.setFullYear(maxDate.getFullYear() - 21);
+
+  // Minimum date is 100 years ago from today
+  const minDate = new Date();
+  minDate.setFullYear(minDate.getFullYear() - 100);
 
   return (
     <>
@@ -143,6 +196,40 @@ export default function SignUpScreen() {
                 />
               </View>
             </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Date of Birth (Must be 21+)</Text>
+              <TouchableOpacity
+                style={styles.inputContainer}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <IconSymbol
+                  ios_icon_name="calendar"
+                  android_material_icon_name="calendar-today"
+                  size={20}
+                  color={colors.textSecondary}
+                />
+                <Text style={[styles.input, !dateOfBirth && styles.placeholderText]}>
+                  {dateOfBirth ? formatDate(dateOfBirth) : 'Select your date of birth'}
+                </Text>
+              </TouchableOpacity>
+              {dateOfBirth && (
+                <Text style={styles.ageText}>
+                  Age: {calculateAge(dateOfBirth)} years old
+                </Text>
+              )}
+            </View>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={dateOfBirth || maxDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                maximumDate={maxDate}
+                minimumDate={minDate}
+              />
+            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
@@ -306,6 +393,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: colors.text,
+  },
+  placeholderText: {
+    color: colors.textSecondary,
+  },
+  ageText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 4,
   },
   captchaSection: {
     gap: 12,
