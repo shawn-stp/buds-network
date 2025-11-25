@@ -206,7 +206,7 @@ export default function CommentsModal() {
     >
       <View style={styles.header}>
         <Text style={styles.title}>Comments</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
+        <TouchableOpacity onPress={() => router.dismiss()} style={styles.closeButton}>
           <IconSymbol
             ios_icon_name="xmark"
             android_material_icon_name="close"
