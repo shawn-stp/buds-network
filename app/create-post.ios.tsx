@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { manipulateAsync, FlipType, SaveFormat } from 'expo-image-manipulator';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol.ios';
 
@@ -27,10 +29,20 @@ interface MediaItem {
   height?: number;
 }
 
+interface MusicItem {
+  uri: string;
+  name: string;
+  size?: number;
+}
+
 export default function CreatePostScreen() {
   const [content, setContent] = useState('');
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
+  const [music, setMusic] = useState<MusicItem | null>(null);
+  
+  const player = useAudioPlayer(music?.uri || null);
+  const status = useAudioPlayerStatus(player);
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -66,6 +78,51 @@ export default function CreatePostScreen() {
       console.log('Error picking media:', error);
       Alert.alert('Error', 'Failed to pick media. Please try again.');
     }
+  };
+
+  const pickMusic = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: true,
+      });
+
+      console.log('Document picker result:', result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setMusic({
+          uri: asset.uri,
+          name: asset.name,
+          size: asset.size,
+        });
+        console.log('Music selected:', asset.name);
+      }
+    } catch (error) {
+      console.log('Error picking music:', error);
+      Alert.alert('Error', 'Failed to pick music. Please try again.');
+    }
+  };
+
+  const removeMusic = () => {
+    if (status.isPlaying) {
+      player.pause();
+    }
+    setMusic(null);
+  };
+
+  const togglePlayPause = () => {
+    if (status.isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const takePhoto = async () => {
@@ -218,13 +275,18 @@ export default function CreatePostScreen() {
   };
 
   const handlePost = () => {
-    if (!content.trim() && media.length === 0) {
-      Alert.alert('Empty Post', 'Please add some content or media to your post.');
+    if (!content.trim() && media.length === 0 && !music) {
+      Alert.alert('Empty Post', 'Please add some content, media, or music to your post.');
       return;
     }
 
     console.log('Creating post with content:', content);
     console.log('Media items:', media.length);
+    console.log('Music:', music?.name || 'None');
+    
+    if (status.isPlaying) {
+      player.pause();
+    }
     
     Alert.alert('Success', 'Post created successfully!', [
       {
@@ -298,6 +360,59 @@ export default function CreatePostScreen() {
             </View>
           )}
 
+          {music && (
+            <View style={styles.musicContainer}>
+              <View style={styles.musicHeader}>
+                <View style={styles.musicIconContainer}>
+                  <IconSymbol
+                    ios_icon_name="music.note"
+                    android_material_icon_name="music_note"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </View>
+                <View style={styles.musicInfo}>
+                  <Text style={styles.musicName} numberOfLines={1}>
+                    {music.name}
+                  </Text>
+                  {status.duration > 0 && (
+                    <Text style={styles.musicDuration}>
+                      {formatTime(status.currentTime)} / {formatTime(status.duration)}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity onPress={removeMusic} style={styles.musicRemoveButton}>
+                  <IconSymbol
+                    ios_icon_name="xmark.circle.fill"
+                    android_material_icon_name="cancel"
+                    size={24}
+                    color={colors.error}
+                  />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.musicControls}>
+                <TouchableOpacity onPress={togglePlayPause} style={styles.playButton}>
+                  <IconSymbol
+                    ios_icon_name={status.isPlaying ? 'pause.circle.fill' : 'play.circle.fill'}
+                    android_material_icon_name={status.isPlaying ? 'pause_circle' : 'play_circle'}
+                    size={48}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+              {status.duration > 0 && (
+                <View style={styles.progressBarContainer}>
+                  <View
+                    style={[
+                      styles.progressBar,
+                      { width: `${(status.currentTime / status.duration) * 100}%` },
+                    ]}
+                  />
+                </View>
+              )}
+            </View>
+          )}
+
           {selectedMediaIndex !== null && media[selectedMediaIndex].type === 'image' && (
             <View style={styles.editingTools}>
               <Text style={styles.editingTitle}>Edit Image</Text>
@@ -367,6 +482,15 @@ export default function CreatePostScreen() {
               />
               <Text style={styles.actionText}>Camera</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={pickMusic}>
+              <IconSymbol
+                ios_icon_name="music.note"
+                android_material_icon_name="music_note"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.actionText}>Music</Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.characterCount}>{content.length}/500</Text>
@@ -428,6 +552,62 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
   },
+  musicContainer: {
+    backgroundColor: colors.cardBackground,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  musicHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  musicIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  musicInfo: {
+    flex: 1,
+  },
+  musicName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  musicDuration: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  musicRemoveButton: {
+    padding: 4,
+  },
+  musicControls: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  playButton: {
+    padding: 8,
+  },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: colors.primary,
+  },
   editingTools: {
     backgroundColor: colors.cardBackground,
     marginHorizontal: 16,
@@ -472,7 +652,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    gap: 16,
+    gap: 12,
   },
   actionButton: {
     flex: 1,
@@ -485,7 +665,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
   },

@@ -18,6 +18,10 @@ export interface Post {
   userProfilePicture: string;
   content: string;
   images: string[];
+  music?: {
+    uri: string;
+    name: string;
+  };
   timestamp: Date;
   likes: string[];
   comments: Comment[];
