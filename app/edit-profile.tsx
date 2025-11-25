@@ -249,8 +249,14 @@ export default function EditProfileScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Always navigate to home feed after profile creation/update
-              router.replace('/(tabs)/(home)');
+              // Navigate to profile tab after saving
+              if (isNewProfile) {
+                // For new profiles, go to home feed first
+                router.replace('/(tabs)/(home)');
+              } else {
+                // For existing profiles, return to profile page
+                router.replace('/(tabs)/profile');
+              }
             },
           },
         ]
@@ -275,14 +281,14 @@ export default function EditProfileScreen() {
         ]
       );
     } else {
-      // Return to home feed instead of going back
-      router.replace('/(tabs)/(home)');
+      // Return to profile page
+      router.replace('/(tabs)/profile');
     }
   };
 
   const handleBack = () => {
-    // Always return to home feed
-    router.replace('/(tabs)/(home)');
+    // Return to profile page
+    router.replace('/(tabs)/profile');
   };
 
   if (isLoadingProfile) {
