@@ -70,12 +70,13 @@ export interface Comment {
 
 export interface Product {
   id: string;
-  userId: string;
+  user_id: string;
   name: string;
   description: string;
-  price: number;
-  type: string;
+  product_type: string;
   images: string[];
+  price: number;
+  created_at: string;
 }
 
 export type ProductFilter = {

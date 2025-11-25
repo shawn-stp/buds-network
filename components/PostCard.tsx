@@ -56,6 +56,14 @@ export function PostCard({ post, onLike, onComment, onShare, currentUserId = '1'
     }
   };
 
+  const handleProfilePress = () => {
+    console.log('Profile pressed for user:', post.userId);
+    router.push({
+      pathname: '/user-profile',
+      params: { userId: post.userId },
+    });
+  };
+
   const handleLinkPress = (url: string) => {
     console.log('Link pressed:', url);
     Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
@@ -155,7 +163,7 @@ export function PostCard({ post, onLike, onComment, onShare, currentUserId = '1'
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.userInfo}>
+        <TouchableOpacity style={styles.userInfo} onPress={handleProfilePress}>
           <Image source={{ uri: post.userProfilePicture }} style={styles.avatar} />
           <View>
             <Text style={styles.userName}>{post.userName}</Text>
