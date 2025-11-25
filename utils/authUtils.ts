@@ -17,9 +17,10 @@ export const storeVerificationCode = async (email: string, code: string): Promis
       expiresIn: 10 * 60 * 1000, // 10 minutes
     };
     await SecureStore.setItemAsync(`verification_code_${email}`, JSON.stringify(data));
-    console.log('Verification code stored');
+    console.log('Verification code stored successfully');
   } catch (error) {
     console.error('Error storing verification code:', error);
+    throw error;
   }
 };
 
@@ -28,7 +29,7 @@ export const verifyEmailCode = async (email: string, inputCode: string): Promise
   try {
     const storedData = await SecureStore.getItemAsync(`verification_code_${email}`);
     if (!storedData) {
-      console.log('No verification code found');
+      console.log('No verification code found for email:', email);
       return false;
     }
 
@@ -44,6 +45,8 @@ export const verifyEmailCode = async (email: string, inputCode: string): Promise
 
     // Verify code
     const isValid = code === inputCode;
+    console.log('Code verification result:', isValid);
+    
     if (isValid) {
       // Delete code after successful verification
       await SecureStore.deleteItemAsync(`verification_code_${email}`);
@@ -56,12 +59,42 @@ export const verifyEmailCode = async (email: string, inputCode: string): Promise
   }
 };
 
-// Simulate sending email (in production, use a real email service)
-export const sendVerificationEmail = async (email: string, code: string): Promise<boolean> => {
+// Get stored verification code (for development/testing purposes)
+export const getStoredVerificationCode = async (email: string): Promise<string | null> => {
   try {
-    console.log('='.repeat(50));
-    console.log('📧 SIMULATED EMAIL SENT');
-    console.log('='.repeat(50));
+    const storedData = await SecureStore.getItemAsync(`verification_code_${email}`);
+    if (!storedData) {
+      return null;
+    }
+
+    const { code, timestamp, expiresIn } = JSON.parse(storedData);
+    const now = Date.now();
+
+    // Check if code has expired
+    if (now - timestamp > expiresIn) {
+      await SecureStore.deleteItemAsync(`verification_code_${email}`);
+      return null;
+    }
+
+    return code;
+  } catch (error) {
+    console.error('Error retrieving stored code:', error);
+    return null;
+  }
+};
+
+// Send verification email
+// NOTE: This is a DEMO implementation that stores the code locally
+// For production, you need to integrate a real email service like:
+// - Supabase Auth (recommended)
+// - SendGrid
+// - Mailgun
+// - AWS SES
+export const sendVerificationEmail = async (email: string, code: string): Promise<{ success: boolean; code?: string }> => {
+  try {
+    console.log('='.repeat(60));
+    console.log('📧 DEMO MODE - EMAIL VERIFICATION');
+    console.log('='.repeat(60));
     console.log(`To: ${email}`);
     console.log(`Subject: Your Buds Verification Code`);
     console.log('');
@@ -70,16 +103,24 @@ export const sendVerificationEmail = async (email: string, code: string): Promis
     console.log(`    ${code}`);
     console.log('');
     console.log('This code will expire in 10 minutes.');
-    console.log('If you did not request this code, please ignore this email.');
-    console.log('='.repeat(50));
+    console.log('If you did not request this code, please ignore this message.');
+    console.log('='.repeat(60));
+    console.log('⚠️  IMPORTANT: This is DEMO mode. No actual email was sent.');
+    console.log('    The code is displayed in the app for testing purposes.');
+    console.log('');
+    console.log('    For production, integrate a real email service:');
+    console.log('    - Enable Supabase and use Supabase Auth');
+    console.log('    - Or integrate SendGrid/Mailgun/AWS SES');
+    console.log('='.repeat(60));
     
     // Store the code
     await storeVerificationCode(email, code);
     
-    return true;
+    // Return success with the code (for demo purposes)
+    return { success: true, code };
   } catch (error) {
-    console.error('Error sending verification email:', error);
-    return false;
+    console.error('Error in sendVerificationEmail:', error);
+    return { success: false };
   }
 };
 

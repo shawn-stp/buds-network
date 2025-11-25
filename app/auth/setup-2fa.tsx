@@ -13,7 +13,7 @@ import {
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { generateEmailVerificationCode, sendVerificationEmail, verifyEmailCode } from '@/utils/authUtils';
+import { generateEmailVerificationCode, sendVerificationEmail, verifyEmailCode, getStoredVerificationCode } from '@/utils/authUtils';
 
 export default function Setup2FAScreen() {
   const router = useRouter();
@@ -25,6 +25,7 @@ export default function Setup2FAScreen() {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
+  const [showDemoCode, setShowDemoCode] = useState(false);
 
   useEffect(() => {
     // Automatically send email when component mounts
@@ -33,23 +34,32 @@ export default function Setup2FAScreen() {
 
   const handleSendEmail = async () => {
     setIsSendingEmail(true);
+    setShowDemoCode(false);
     
-    // Generate a 6-digit code
-    const code = generateEmailVerificationCode();
-    setGeneratedCode(code);
-    
-    // Send email (simulated)
-    const success = await sendVerificationEmail(email as string, code);
-    
-    if (success) {
-      setEmailSent(true);
-      Alert.alert(
-        'Email Sent!',
-        `A verification code has been sent to ${email}. Please check your email and enter the code below.`,
-        [{ text: 'OK' }]
-      );
-    } else {
-      Alert.alert('Error', 'Failed to send verification email. Please try again.');
+    try {
+      // Generate a 6-digit code
+      const code = generateEmailVerificationCode();
+      setGeneratedCode(code);
+      
+      // Send email (demo mode - stores locally)
+      const result = await sendVerificationEmail(email as string, code);
+      
+      if (result.success) {
+        setEmailSent(true);
+        setShowDemoCode(true);
+        
+        // Show alert with demo information
+        Alert.alert(
+          '📧 Demo Mode - Code Generated',
+          `Since this is a demo app, no actual email was sent.\n\nYour verification code is displayed below for testing.\n\nFor production, enable Supabase or integrate an email service.`,
+          [{ text: 'Got It' }]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to generate verification code. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      Alert.alert('Error', 'An error occurred. Please try again.');
     }
     
     setIsSendingEmail(false);
@@ -63,26 +73,31 @@ export default function Setup2FAScreen() {
 
     setIsVerifying(true);
 
-    // Verify the code
-    const isValid = await verifyEmailCode(email as string, verificationCode);
+    try {
+      // Verify the code
+      const isValid = await verifyEmailCode(email as string, verificationCode);
 
-    if (isValid) {
-      Alert.alert(
-        'Success!',
-        'Two-factor authentication has been enabled for your account.',
-        [
-          {
-            text: 'Continue',
-            onPress: () => {
-              console.log('2FA setup complete, navigating to app');
-              router.replace('/(tabs)');
+      if (isValid) {
+        Alert.alert(
+          'Success!',
+          'Two-factor authentication has been enabled for your account.',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                console.log('2FA setup complete, navigating to app');
+                router.replace('/(tabs)');
+              },
             },
-          },
-        ]
-      );
-    } else {
-      Alert.alert('Error', 'Invalid or expired verification code. Please try again or request a new code.');
-      setVerificationCode('');
+          ]
+        );
+      } else {
+        Alert.alert('Error', 'Invalid or expired verification code. Please try again or request a new code.');
+        setVerificationCode('');
+      }
+    } catch (error) {
+      console.error('Error verifying code:', error);
+      Alert.alert('Error', 'An error occurred during verification. Please try again.');
     }
 
     setIsVerifying(false);
@@ -91,7 +106,7 @@ export default function Setup2FAScreen() {
   const handleResendCode = () => {
     Alert.alert(
       'Resend Code?',
-      'Do you want to receive a new verification code?',
+      'Do you want to generate a new verification code?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -123,6 +138,11 @@ export default function Setup2FAScreen() {
     );
   };
 
+  const handleCopyCode = () => {
+    // In a real app, you'd use Clipboard API
+    Alert.alert('Demo Mode', `Code: ${generatedCode}\n\nIn production, this would copy to clipboard.`);
+  };
+
   return (
     <>
       <Stack.Screen
@@ -148,40 +168,66 @@ export default function Setup2FAScreen() {
           </View>
           <Text style={styles.title}>Secure Your Account</Text>
           <Text style={styles.subtitle}>
-            We&apos;ve sent a verification code to your email address
+            Two-factor authentication via email
           </Text>
           <Text style={styles.email}>{email}</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Check Your Email</Text>
-          <Text style={styles.description}>
-            A 6-digit verification code has been sent to your email address. The code will expire in 10 minutes.
-          </Text>
-          
-          {!emailSent && isSendingEmail && (
+        {!emailSent && isSendingEmail && (
+          <View style={styles.card}>
             <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Sending email...</Text>
-            </View>
-          )}
-
-          {emailSent && (
-            <View style={styles.successContainer}>
               <IconSymbol
-                ios_icon_name="checkmark.circle.fill"
-                android_material_icon_name="check-circle"
+                ios_icon_name="hourglass"
+                android_material_icon_name="hourglass-empty"
                 size={24}
                 color={colors.primary}
               />
-              <Text style={styles.successText}>Email sent successfully!</Text>
+              <Text style={styles.loadingText}>Generating verification code...</Text>
             </View>
-          )}
-        </View>
+          </View>
+        )}
+
+        {emailSent && showDemoCode && (
+          <View style={styles.demoCard}>
+            <View style={styles.demoHeader}>
+              <IconSymbol
+                ios_icon_name="exclamationmark.triangle.fill"
+                android_material_icon_name="warning"
+                size={24}
+                color="#FF9500"
+              />
+              <Text style={styles.demoTitle}>Demo Mode</Text>
+            </View>
+            <Text style={styles.demoDescription}>
+              No actual email was sent. This is a demo app.
+            </Text>
+            <View style={styles.codeDisplayContainer}>
+              <Text style={styles.codeDisplayLabel}>Your Verification Code:</Text>
+              <View style={styles.codeDisplay}>
+                <Text style={styles.codeDisplayText}>{generatedCode}</Text>
+              </View>
+              <TouchableOpacity style={styles.copyButton} onPress={handleCopyCode}>
+                <IconSymbol
+                  ios_icon_name="doc.on.doc"
+                  android_material_icon_name="content-copy"
+                  size={16}
+                  color={colors.primary}
+                />
+                <Text style={styles.copyButtonText}>Tap to view code</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.productionNote}>
+              <Text style={styles.productionNoteText}>
+                💡 For production: Enable Supabase or integrate SendGrid/Mailgun
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Enter Verification Code</Text>
           <Text style={styles.description}>
-            Enter the 6-digit code from your email:
+            Enter the 6-digit code displayed above:
           </Text>
           
           <View style={styles.codeInputContainer}>
@@ -204,7 +250,7 @@ export default function Setup2FAScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.verifyButton, isVerifying && styles.verifyButtonDisabled]}
+            style={[styles.verifyButton, (isVerifying || !emailSent) && styles.verifyButtonDisabled]}
             onPress={handleVerify}
             disabled={isVerifying || !emailSent}
           >
@@ -225,7 +271,7 @@ export default function Setup2FAScreen() {
               color={colors.primary}
             />
             <Text style={styles.resendButtonText}>
-              {isSendingEmail ? 'Sending...' : 'Resend Code'}
+              {isSendingEmail ? 'Generating...' : 'Generate New Code'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -238,7 +284,7 @@ export default function Setup2FAScreen() {
             color={colors.primary}
           />
           <Text style={styles.infoText}>
-            Didn&apos;t receive the email? Check your spam folder or click &quot;Resend Code&quot; to receive a new one.
+            The verification code expires in 10 minutes. You can generate a new code at any time.
           </Text>
         </View>
 
@@ -302,6 +348,88 @@ const styles = StyleSheet.create({
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
+  demoCard: {
+    backgroundColor: '#FFF9E6',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#FF9500',
+    boxShadow: '0px 2px 8px rgba(255, 149, 0, 0.2)',
+    elevation: 3,
+  },
+  demoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  demoTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FF9500',
+  },
+  demoDescription: {
+    fontSize: 14,
+    color: '#8B6914',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  codeDisplayContainer: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  codeDisplayLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B6914',
+  },
+  codeDisplay: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderWidth: 2,
+    borderColor: '#FF9500',
+    borderStyle: 'dashed',
+  },
+  codeDisplayText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FF9500',
+    letterSpacing: 8,
+    fontFamily: 'SpaceMono',
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF9500',
+  },
+  copyButtonText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  productionNote: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF9500',
+  },
+  productionNoteText: {
+    fontSize: 12,
+    color: '#8B6914',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -314,29 +442,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   loadingContainer: {
-    marginTop: 16,
-    padding: 16,
-    backgroundColor: colors.background,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    padding: 16,
   },
   loadingText: {
     fontSize: 14,
     color: colors.textSecondary,
-  },
-  successContainer: {
-    marginTop: 16,
-    padding: 16,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  successText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '600',
   },
   codeInputContainer: {
     flexDirection: 'row',
