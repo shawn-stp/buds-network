@@ -12,12 +12,12 @@ export default function HomeScreen() {
   const [posts, setPosts] = useState<Post[]>(mockPosts);
   const [selectedSegment, setSelectedSegment] = useState(0);
 
-  // Get the current user's following list
-  const currentUser = mockUsers.find(user => user.id === currentUserId);
-  const followingIds = currentUser?.following || [];
-
   // Filter posts based on selected segment
   const filteredPosts = useMemo(() => {
+    // Get the current user's following list
+    const currentUser = mockUsers.find(user => user.id === currentUserId);
+    const followingIds = currentUser?.following || [];
+
     if (selectedSegment === 0) {
       // All posts
       return posts;
@@ -25,7 +25,7 @@ export default function HomeScreen() {
       // Only posts from businesses the user follows
       return posts.filter(post => followingIds.includes(post.userId));
     }
-  }, [posts, selectedSegment, followingIds]);
+  }, [posts, selectedSegment]);
 
   const handleLike = (postId: string) => {
     setPosts(prevPosts =>

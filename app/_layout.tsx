@@ -56,7 +56,7 @@ export default function RootLayout() {
       // Redirect to app if authenticated and trying to access auth screens
       router.replace('/(tabs)');
     }
-  }, [session, segments, isLoading, loaded]);
+  }, [session, segments, isLoading, loaded, router]);
 
   if (!loaded || isLoading) {
     return null;

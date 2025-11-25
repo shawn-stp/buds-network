@@ -20,7 +20,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol.ios';
 import { supabase } from '@/lib/supabase';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
