@@ -1,76 +1,144 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { mockUsers, currentUserId } from '@/data/mockData';
-import { get2FASecret, delete2FASecret } from '@/utils/authUtils';
+import { supabase } from '@/lib/supabase';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const currentUser = mockUsers.find(u => u.id === currentUserId);
-  const [businessName, setBusinessName] = useState(currentUser?.companyName || '');
-  const [has2FA, setHas2FA] = useState(false);
+  const [businessName, setBusinessName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    check2FAStatus();
+    loadUserData();
   }, []);
 
-  const check2FAStatus = async () => {
-    const secret = await get2FASecret(currentUserId);
-    setHas2FA(!!secret);
-  };
-
-  const handleSaveBusinessName = () => {
-    console.log('Save business name:', businessName);
-    Alert.alert('Success', 'Business name updated successfully');
-  };
-
-  const handleChangeEmail = () => {
-    console.log('Change email');
-    Alert.alert('Change Email', 'Email change functionality will be implemented with backend');
-  };
-
-  const handleChangePassword = () => {
-    console.log('Change password');
-    Alert.alert('Change Password', 'Password change functionality will be implemented with backend');
-  };
-
-  const handleToggle2FA = () => {
-    if (has2FA) {
-      Alert.alert(
-        'Disable 2FA',
-        'Are you sure you want to disable two-factor authentication? This will make your account less secure.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Disable',
-            style: 'destructive',
-            onPress: async () => {
-              await delete2FASecret(currentUserId);
-              setHas2FA(false);
-              Alert.alert('Success', 'Two-factor authentication has been disabled');
-            },
-          },
-        ]
-      );
-    } else {
-      router.push({
-        pathname: '/auth/setup-2fa',
-        params: { email: 'user@example.com', companyName: businessName },
-      });
+  const loadUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserEmail(user.email || '');
+        setBusinessName(user.user_metadata?.company_name || '');
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
     }
   };
 
-  const handleManageSubscription = () => {
-    console.log('Manage subscription');
-    Alert.alert('Manage Subscription', 'Subscription management will be implemented with backend');
+  const handleSaveBusinessName = async () => {
+    if (!businessName.trim()) {
+      Alert.alert('Error', 'Please enter a business name');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { company_name: businessName },
+      });
+
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        Alert.alert('Success', 'Business name updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating business name:', error);
+      Alert.alert('Error', 'Failed to update business name');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChangeEmail = () => {
+    Alert.alert(
+      'Change Email',
+      'To change your email address, you will need to verify both your current and new email addresses.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: () => {
+            Alert.prompt(
+              'New Email Address',
+              'Enter your new email address:',
+              async (newEmail) => {
+                if (!newEmail || !newEmail.includes('@')) {
+                  Alert.alert('Error', 'Please enter a valid email address');
+                  return;
+                }
+
+                try {
+                  const { error } = await supabase.auth.updateUser({
+                    email: newEmail,
+                  });
+
+                  if (error) {
+                    Alert.alert('Error', error.message);
+                  } else {
+                    Alert.alert(
+                      'Verify Your Email',
+                      'We\'ve sent verification emails to both your current and new email addresses. Please verify both to complete the change.',
+                      [{ text: 'OK' }]
+                    );
+                  }
+                } catch (error) {
+                  console.error('Error changing email:', error);
+                  Alert.alert('Error', 'Failed to change email address');
+                }
+              },
+              'plain-text',
+              '',
+              'email-address'
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const handleChangePassword = () => {
+    Alert.alert(
+      'Change Password',
+      `We'll send a password reset link to ${userEmail}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Link',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+                redirectTo: 'https://natively.dev/email-confirmed',
+              });
+
+              if (error) {
+                Alert.alert('Error', error.message);
+              } else {
+                Alert.alert(
+                  'Check Your Email',
+                  'Password reset instructions have been sent to your email address.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error) {
+              console.error('Error sending password reset:', error);
+              Alert.alert('Error', 'Failed to send password reset email');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleBlockedUsers = () => {
-    console.log('View blocked users');
     Alert.alert('Blocked Users', 'Blocked users list will be shown here');
+  };
+
+  const handleManageSubscription = () => {
+    Alert.alert('Manage Subscription', 'Subscription management will be implemented with backend');
   };
 
   const handleLogout = () => {
@@ -82,9 +150,19 @@ export default function SettingsScreen() {
         {
           text: 'Log Out',
           style: 'destructive',
-          onPress: () => {
-            console.log('User logged out');
-            Alert.alert('Logged Out', 'You have been logged out successfully');
+          onPress: async () => {
+            try {
+              const { error } = await supabase.auth.signOut();
+              if (error) {
+                Alert.alert('Error', error.message);
+              } else {
+                console.log('User logged out successfully');
+                router.replace('/');
+              }
+            } catch (error) {
+              console.error('Error logging out:', error);
+              Alert.alert('Error', 'Failed to log out');
+            }
           },
         },
       ]
@@ -94,15 +172,36 @@ export default function SettingsScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone.',
+      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            console.log('Account deletion requested');
-            Alert.alert('Account Deleted', 'Your account has been scheduled for deletion');
+            Alert.prompt(
+              'Confirm Deletion',
+              'Type "DELETE" to confirm account deletion:',
+              async (text) => {
+                if (text === 'DELETE') {
+                  try {
+                    // Note: Supabase doesn't have a direct delete user method from client
+                    // You would need to implement this via an Edge Function or admin API
+                    Alert.alert(
+                      'Account Deletion',
+                      'Please contact support to delete your account. We will process your request within 24 hours.',
+                      [{ text: 'OK' }]
+                    );
+                  } catch (error) {
+                    console.error('Error deleting account:', error);
+                    Alert.alert('Error', 'Failed to delete account');
+                  }
+                } else {
+                  Alert.alert('Error', 'Confirmation text does not match');
+                }
+              },
+              'plain-text'
+            );
           },
         },
       ]
@@ -134,9 +233,16 @@ export default function SettingsScreen() {
                 onChangeText={setBusinessName}
                 placeholder="Enter business name"
                 placeholderTextColor={colors.textSecondary}
+                editable={!isLoading}
               />
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveBusinessName}>
-                <Text style={styles.saveButtonText}>Save Changes</Text>
+              <TouchableOpacity 
+                style={[styles.saveButton, isLoading && styles.saveButtonDisabled]} 
+                onPress={handleSaveBusinessName}
+                disabled={isLoading}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isLoading ? 'Saving...' : 'Save Changes'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -152,7 +258,10 @@ export default function SettingsScreen() {
                     size={24}
                     color={colors.primary}
                   />
-                  <Text style={styles.settingItemText}>Change Email Address</Text>
+                  <View style={styles.settingItemTextContainer}>
+                    <Text style={styles.settingItemText}>Change Email Address</Text>
+                    <Text style={styles.settingItemSubtext}>{userEmail}</Text>
+                  </View>
                 </View>
                 <IconSymbol
                   ios_icon_name="chevron.right"
@@ -180,38 +289,6 @@ export default function SettingsScreen() {
                   size={20}
                   color={colors.textSecondary}
                 />
-              </TouchableOpacity>
-
-              <View style={styles.divider} />
-
-              <TouchableOpacity style={styles.settingItem} onPress={handleToggle2FA}>
-                <View style={styles.settingItemLeft}>
-                  <IconSymbol
-                    ios_icon_name="lock.shield"
-                    android_material_icon_name="security"
-                    size={24}
-                    color={colors.primary}
-                  />
-                  <View style={styles.settingItemTextContainer}>
-                    <Text style={styles.settingItemText}>Two-Factor Authentication</Text>
-                    <Text style={styles.settingItemSubtext}>
-                      {has2FA ? 'Enabled' : 'Add extra security to your account'}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.settingItemRight}>
-                  {has2FA && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>ON</Text>
-                    </View>
-                  )}
-                  <IconSymbol
-                    ios_icon_name="chevron.right"
-                    android_material_icon_name="chevron-right"
-                    size={20}
-                    color={colors.textSecondary}
-                  />
-                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -359,6 +436,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 16,
   },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
   saveButtonText: {
     color: colors.card,
     fontSize: 16,
@@ -389,22 +469,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     marginTop: 2,
-  },
-  settingItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  badge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.card,
   },
   logoutText: {
     color: colors.error,

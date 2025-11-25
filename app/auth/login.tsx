@@ -14,14 +14,16 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email address');
       return;
@@ -32,20 +34,90 @@ export default function LoginScreen() {
       return;
     }
 
-    // Mock login - check if user has 2FA enabled
-    console.log('Logging in:', { email });
-    
-    // Simulate checking if 2FA is enabled
-    const has2FA = true; // In production, this would come from the backend
-    
-    if (has2FA) {
-      router.push({
-        pathname: '/auth/verify-2fa',
-        params: { email },
+    setIsLoading(true);
+
+    try {
+      console.log('Logging in with Supabase:', { email });
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-    } else {
-      router.replace('/(tabs)');
+
+      if (error) {
+        console.error('Login error:', error);
+        
+        // Provide user-friendly error messages
+        if (error.message.includes('Email not confirmed')) {
+          Alert.alert(
+            'Email Not Verified',
+            'Please verify your email address before signing in. Check your inbox for the verification email.',
+            [{ text: 'OK' }]
+          );
+        } else if (error.message.includes('Invalid login credentials')) {
+          Alert.alert('Error', 'Invalid email or password. Please try again.');
+        } else {
+          Alert.alert('Error', error.message || 'Failed to sign in. Please try again.');
+        }
+        return;
+      }
+
+      console.log('Login successful:', data);
+
+      if (data.session) {
+        // Successfully logged in
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('Error', 'Failed to create session. Please try again.');
+      }
+    } catch (error) {
+      console.error('Unexpected error during login:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert(
+        'Enter Email',
+        'Please enter your email address first, then tap "Forgot Password?" again.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Reset Password',
+      `Send password reset instructions to ${email}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: 'https://natively.dev/email-confirmed',
+              });
+
+              if (error) {
+                Alert.alert('Error', error.message);
+              } else {
+                Alert.alert(
+                  'Check Your Email',
+                  'Password reset instructions have been sent to your email address.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error) {
+              console.error('Password reset error:', error);
+              Alert.alert('Error', 'Failed to send password reset email. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -93,6 +165,7 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  editable={!isLoading}
                 />
               </View>
             </View>
@@ -114,8 +187,9 @@ export default function LoginScreen() {
                   placeholderTextColor={colors.textSecondary}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  editable={!isLoading}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
                   <IconSymbol
                     ios_icon_name={showPassword ? 'eye.slash' : 'eye'}
                     android_material_icon_name={showPassword ? 'visibility-off' : 'visibility'}
@@ -126,17 +200,23 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
+            <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword} disabled={isLoading}>
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-              <Text style={styles.loginButtonText}>Sign In</Text>
+            <TouchableOpacity 
+              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} 
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              <Text style={styles.loginButtonText}>
+                {isLoading ? 'Signing In...' : 'Sign In'}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>Don&apos;t have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/auth/signup')}>
+              <TouchableOpacity onPress={() => router.push('/auth/signup')} disabled={isLoading}>
                 <Text style={styles.linkText}>Sign Up</Text>
               </TouchableOpacity>
             </View>
@@ -217,6 +297,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 12,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
   },
   loginButtonText: {
     color: colors.card,

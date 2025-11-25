@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { Stack, useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { generateCaptcha, verifyCaptcha } from '@/utils/authUtils';
+import { supabase } from '@/lib/supabase';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function SignUpScreen() {
   const [captcha, setCaptcha] = useState(generateCaptcha());
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const refreshCaptcha = () => {
     setCaptcha(generateCaptcha());
@@ -122,7 +124,7 @@ export default function SignUpScreen() {
     return null;
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     // Validation
     if (!companyName.trim()) {
       Alert.alert('Error', 'Please enter your company name');
@@ -179,14 +181,69 @@ export default function SignUpScreen() {
       return;
     }
 
-    // Mock user creation
-    console.log('Creating account:', { companyName, email, age });
-    
-    // Navigate to 2FA setup
-    router.push({
-      pathname: '/auth/setup-2fa',
-      params: { email, companyName },
-    });
+    setIsLoading(true);
+
+    try {
+      console.log('Creating account with Supabase:', { email, companyName, age });
+      
+      // Sign up with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: 'https://natively.dev/email-confirmed',
+          data: {
+            company_name: companyName,
+            date_of_birth: dateOfBirth.toISOString(),
+            age: age,
+          },
+        },
+      });
+
+      if (error) {
+        console.error('Signup error:', error);
+        Alert.alert('Error', error.message || 'Failed to create account. Please try again.');
+        return;
+      }
+
+      console.log('Signup successful:', data);
+
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        // Email confirmation required
+        Alert.alert(
+          'Verify Your Email',
+          `We've sent a verification email to ${email}.\n\nPlease check your inbox and click the verification link to activate your account.\n\nNote: Check your spam folder if you don't see the email within a few minutes.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                router.replace('/auth/login');
+              },
+            },
+          ]
+        );
+      } else if (data.session) {
+        // Auto-confirmed (shouldn't happen with default settings)
+        Alert.alert(
+          'Account Created!',
+          'Your account has been created successfully.',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                router.replace('/(tabs)');
+              },
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Unexpected error during signup:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -232,6 +289,7 @@ export default function SignUpScreen() {
                   placeholder="Enter your company name"
                   placeholderTextColor={colors.textSecondary}
                   autoCapitalize="words"
+                  editable={!isLoading}
                 />
               </View>
             </View>
@@ -254,6 +312,7 @@ export default function SignUpScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  editable={!isLoading}
                 />
               </View>
             </View>
@@ -276,6 +335,7 @@ export default function SignUpScreen() {
                   keyboardType="numeric"
                   maxLength={10}
                   autoCorrect={false}
+                  editable={!isLoading}
                 />
               </View>
               {getAgeDisplay() && (
@@ -302,8 +362,9 @@ export default function SignUpScreen() {
                   placeholderTextColor={colors.textSecondary}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  editable={!isLoading}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
                   <IconSymbol
                     ios_icon_name={showPassword ? 'eye.slash' : 'eye'}
                     android_material_icon_name={showPassword ? 'visibility-off' : 'visibility'}
@@ -331,8 +392,9 @@ export default function SignUpScreen() {
                   placeholderTextColor={colors.textSecondary}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
+                  editable={!isLoading}
                 />
-                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isLoading}>
                   <IconSymbol
                     ios_icon_name={showConfirmPassword ? 'eye.slash' : 'eye'}
                     android_material_icon_name={showConfirmPassword ? 'visibility-off' : 'visibility'}
@@ -349,7 +411,7 @@ export default function SignUpScreen() {
                 <View style={styles.captchaDisplay}>
                   <Text style={styles.captchaText}>{captcha.text}</Text>
                 </View>
-                <TouchableOpacity style={styles.refreshButton} onPress={refreshCaptcha}>
+                <TouchableOpacity style={styles.refreshButton} onPress={refreshCaptcha} disabled={isLoading}>
                   <IconSymbol
                     ios_icon_name="arrow.clockwise"
                     android_material_icon_name="refresh"
@@ -373,17 +435,24 @@ export default function SignUpScreen() {
                   placeholderTextColor={colors.textSecondary}
                   autoCapitalize="characters"
                   autoCorrect={false}
+                  editable={!isLoading}
                 />
               </View>
             </View>
 
-            <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp}>
-              <Text style={styles.signUpButtonText}>Create Account</Text>
+            <TouchableOpacity 
+              style={[styles.signUpButton, isLoading && styles.signUpButtonDisabled]} 
+              onPress={handleSignUp}
+              disabled={isLoading}
+            >
+              <Text style={styles.signUpButtonText}>
+                {isLoading ? 'Creating Account...' : 'Create Account'}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/auth/login')}>
+              <TouchableOpacity onPress={() => router.push('/auth/login')} disabled={isLoading}>
                 <Text style={styles.linkText}>Sign In</Text>
               </TouchableOpacity>
             </View>
@@ -496,6 +565,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 12,
+  },
+  signUpButtonDisabled: {
+    opacity: 0.6,
   },
   signUpButtonText: {
     color: colors.card,
