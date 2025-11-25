@@ -27,7 +27,7 @@ export default function TabLayout() {
     {
       name: 'messages',
       route: '/(tabs)/messages',
-      icon: 'chatbubbles',
+      icon: 'mail',
       label: 'Messages',
     },
     {

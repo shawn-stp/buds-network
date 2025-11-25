@@ -19,7 +19,7 @@ export default function TabLayout() {
         <Label>Discover</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="messages" name="messages">
-        <Icon sf="message.fill" />
+        <Icon sf="envelope.fill" />
         <Label>Messages</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="profile" name="profile">
