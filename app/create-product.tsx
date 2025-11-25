@@ -73,8 +73,11 @@ export default function CreateProductScreen() {
 
       // Generate a unique filename
       const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      const filePath = `product-images/${fileName}`;
+      const fileName = `${Date.now()}.${fileExt}`;
+      // Fix: The RLS policy expects the first folder to be the user ID
+      const filePath = `${user.id}/${fileName}`;
+
+      console.log('Uploading to path:', filePath);
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
@@ -86,8 +89,11 @@ export default function CreateProductScreen() {
 
       if (error) {
         console.error('Error uploading image:', error);
+        Alert.alert('Error', `Error uploading image: ${error.message}`);
         return null;
       }
+
+      console.log('Upload successful:', data);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
@@ -97,6 +103,7 @@ export default function CreateProductScreen() {
       return publicUrl;
     } catch (error) {
       console.error('Error in uploadImage:', error);
+      Alert.alert('Error', `Error in uploadImage: ${error}`);
       return null;
     }
   };
