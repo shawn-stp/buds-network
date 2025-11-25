@@ -1,15 +1,26 @@
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Platform, Switch } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { mockUsers, currentUserId } from '@/data/mockData';
+import { get2FASecret, delete2FASecret } from '@/utils/authUtils';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const currentUser = mockUsers.find(u => u.id === currentUserId);
   const [businessName, setBusinessName] = useState(currentUser?.companyName || '');
+  const [has2FA, setHas2FA] = useState(false);
+
+  useEffect(() => {
+    check2FAStatus();
+  }, []);
+
+  const check2FAStatus = async () => {
+    const secret = await get2FASecret(currentUserId);
+    setHas2FA(!!secret);
+  };
 
   const handleSaveBusinessName = () => {
     console.log('Save business name:', businessName);
@@ -24,6 +35,32 @@ export default function SettingsScreen() {
   const handleChangePassword = () => {
     console.log('Change password');
     Alert.alert('Change Password', 'Password change functionality will be implemented with backend');
+  };
+
+  const handleToggle2FA = () => {
+    if (has2FA) {
+      Alert.alert(
+        'Disable 2FA',
+        'Are you sure you want to disable two-factor authentication? This will make your account less secure.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disable',
+            style: 'destructive',
+            onPress: async () => {
+              await delete2FASecret(currentUserId);
+              setHas2FA(false);
+              Alert.alert('Success', 'Two-factor authentication has been disabled');
+            },
+          },
+        ]
+      );
+    } else {
+      router.push({
+        pathname: '/auth/setup-2fa',
+        params: { email: 'user@example.com', companyName: businessName },
+      });
+    }
   };
 
   const handleManageSubscription = () => {
@@ -143,6 +180,38 @@ export default function SettingsScreen() {
                   size={20}
                   color={colors.textSecondary}
                 />
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity style={styles.settingItem} onPress={handleToggle2FA}>
+                <View style={styles.settingItemLeft}>
+                  <IconSymbol
+                    ios_icon_name="lock.shield"
+                    android_material_icon_name="security"
+                    size={24}
+                    color={colors.primary}
+                  />
+                  <View style={styles.settingItemTextContainer}>
+                    <Text style={styles.settingItemText}>Two-Factor Authentication</Text>
+                    <Text style={styles.settingItemSubtext}>
+                      {has2FA ? 'Enabled' : 'Add extra security to your account'}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.settingItemRight}>
+                  {has2FA && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>ON</Text>
+                    </View>
+                  )}
+                  <IconSymbol
+                    ios_icon_name="chevron.right"
+                    android_material_icon_name="chevron-right"
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -308,10 +377,34 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
+  settingItemTextContainer: {
+    flex: 1,
+  },
   settingItemText: {
     fontSize: 16,
     color: colors.text,
     fontWeight: '500',
+  },
+  settingItemSubtext: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  settingItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.card,
   },
   logoutText: {
     color: colors.error,
