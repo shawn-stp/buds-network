@@ -180,6 +180,13 @@ export default function UserProfileScreen() {
     }
   };
 
+  const handleViewProducts = () => {
+    router.push({
+      pathname: '/(tabs)/products',
+      params: { userId: userId }
+    });
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -262,14 +269,28 @@ export default function UserProfileScreen() {
           </View>
 
           {!isOwnProfile && (
-            <TouchableOpacity
-              style={[styles.followButton, isFollowing && styles.followingButton]}
-              onPress={handleFollow}
-            >
-              <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
-                {isFollowing ? 'Following' : 'Follow'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.followButton, isFollowing && styles.followingButton]}
+                onPress={handleFollow}
+              >
+                <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.productsButton}
+                onPress={handleViewProducts}
+              >
+                <IconSymbol
+                  ios_icon_name="cube.box"
+                  android_material_icon_name="inventory"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.productsButtonText}>View Products</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -451,6 +472,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
+  actionButtons: {
+    width: '100%',
+    gap: 12,
+  },
   followButton: {
     width: '100%',
     backgroundColor: colors.primary,
@@ -470,6 +495,23 @@ const styles = StyleSheet.create({
   },
   followingButtonText: {
     color: colors.text,
+  },
+  productsButton: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    gap: 8,
+  },
+  productsButtonText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
   tabs: {
     flexDirection: 'row',

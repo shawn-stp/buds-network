@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Platform, Alert, ActivityIndicator, Image } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
 const productTypes = ['All', 'Flower', 'Pre Roll', 'Edible', 'Tincture', 'Topical', 'Beverage', 'Concentrate'];
@@ -21,6 +21,9 @@ interface Product {
 
 export default function ProductsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const viewUserId = params.userId as string | undefined;
+
   const [filter, setFilter] = useState<string[]>(['All']);
   const [showFilters, setShowFilters] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -41,15 +44,15 @@ export default function ProductsScreen() {
 
       setCurrentUserId(user.id);
 
-      // For now, show current user's products
-      // TODO: Add ability to view other users' products
-      setIsOwnProfile(true);
+      // Determine which user's products to show
+      const targetUserId = viewUserId || user.id;
+      setIsOwnProfile(targetUserId === user.id);
 
       // Load products
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
         .order('created_at', { ascending: false });
 
       if (productsError) {
@@ -58,7 +61,7 @@ export default function ProductsScreen() {
       }
 
       setProducts(productsData || []);
-      console.log(`Loaded ${productsData?.length || 0} products`);
+      console.log(`Loaded ${productsData?.length || 0} products for user ${targetUserId}`);
     } catch (error) {
       console.error('Error in loadProducts:', error);
     } finally {
@@ -69,13 +72,20 @@ export default function ProductsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadProducts();
-    }, [])
+    }, [viewUserId])
   );
 
   const filteredProducts = products.filter(product => {
     if (filter.includes('All')) return true;
     return filter.includes(product.product_type);
   });
+
+  const handleProductPress = (product: Product) => {
+    router.push({
+      pathname: '/product-detail',
+      params: { productId: product.id }
+    });
+  };
 
   const handleContact = (product: Product) => {
     Alert.alert(
@@ -102,7 +112,11 @@ export default function ProductsScreen() {
   };
 
   const renderProductCard = ({ item }: { item: Product }) => (
-    <TouchableOpacity style={styles.productCard}>
+    <TouchableOpacity 
+      style={styles.productCard}
+      onPress={() => handleProductPress(item)}
+      activeOpacity={0.7}
+    >
       {item.images && item.images.length > 0 ? (
         <Image source={{ uri: item.images[0] }} style={styles.productImage} />
       ) : (
@@ -124,7 +138,10 @@ export default function ProductsScreen() {
       </View>
       <TouchableOpacity
         style={styles.contactButton}
-        onPress={() => handleContact(item)}
+        onPress={(e) => {
+          e.stopPropagation();
+          handleContact(item);
+        }}
       >
         <IconSymbol
           ios_icon_name="paperplane"
@@ -148,6 +165,16 @@ export default function ProductsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        {viewUserId && (
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <IconSymbol
+              ios_icon_name="chevron.left"
+              android_material_icon_name="arrow-back"
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        )}
         <Text style={styles.title}>Products</Text>
         <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(true)}>
           <IconSymbol
@@ -310,10 +337,14 @@ const styles = StyleSheet.create({
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
   },
+  backButton: {
+    padding: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: colors.text,
+    flex: 1,
   },
   filterButton: {
     padding: 8,
