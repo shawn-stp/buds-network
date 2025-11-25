@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -18,6 +19,9 @@ import { manipulateAsync, FlipType, SaveFormat } from 'expo-image-manipulator';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol.ios';
+import { supabase } from '@/lib/supabase';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_SIZE = (SCREEN_WIDTH - 48) / 3;
@@ -40,9 +44,33 @@ export default function CreatePostScreen() {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const [music, setMusic] = useState<MusicItem | null>(null);
+  const [isPosting, setIsPosting] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   
   const player = useAudioPlayer(music?.uri || null);
   const status = useAudioPlayerStatus(player);
+
+  useEffect(() => {
+    checkUser();
+  }, []);
+
+  const checkUser = async () => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      console.log('User check:', user ? `User ID: ${user.id}` : 'No user found', error);
+      
+      if (user) {
+        setUserId(user.id);
+      } else {
+        Alert.alert('Error', 'You must be logged in to create a post.');
+        router.back();
+      }
+    } catch (error) {
+      console.error('Error checking user:', error);
+      Alert.alert('Error', 'Failed to verify user. Please try again.');
+      router.back();
+    }
+  };
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -65,6 +93,8 @@ export default function CreatePostScreen() {
         videoMaxDuration: 60,
       });
 
+      console.log('Image picker result:', result);
+
       if (!result.canceled && result.assets) {
         const newMedia: MediaItem[] = result.assets.map(asset => ({
           uri: asset.uri,
@@ -72,10 +102,12 @@ export default function CreatePostScreen() {
           width: asset.width,
           height: asset.height,
         }));
-        setMedia([...media, ...newMedia]);
+        console.log('Adding media items:', newMedia.length, 'items');
+        console.log('Media URIs:', newMedia.map(m => m.uri));
+        setMedia(prevMedia => [...prevMedia, ...newMedia]);
       }
     } catch (error) {
-      console.log('Error picking media:', error);
+      console.error('Error picking media:', error);
       Alert.alert('Error', 'Failed to pick media. Please try again.');
     }
   };
@@ -99,7 +131,7 @@ export default function CreatePostScreen() {
         console.log('Music selected:', asset.name);
       }
     } catch (error) {
-      console.log('Error picking music:', error);
+      console.error('Error picking music:', error);
       Alert.alert('Error', 'Failed to pick music. Please try again.');
     }
   };
@@ -146,16 +178,18 @@ export default function CreatePostScreen() {
           width: result.assets[0].width,
           height: result.assets[0].height,
         };
-        setMedia([...media, newMedia]);
+        console.log('Photo taken:', newMedia.uri);
+        setMedia(prevMedia => [...prevMedia, newMedia]);
       }
     } catch (error) {
-      console.log('Error taking photo:', error);
+      console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
 
   const removeMedia = (index: number) => {
-    setMedia(media.filter((_, i) => i !== index));
+    console.log('Removing media at index:', index);
+    setMedia(prevMedia => prevMedia.filter((_, i) => i !== index));
     if (selectedMediaIndex === index) {
       setSelectedMediaIndex(null);
     }
@@ -188,7 +222,7 @@ export default function CreatePostScreen() {
       };
       setMedia(updatedMedia);
     } catch (error) {
-      console.log('Error rotating image:', error);
+      console.error('Error rotating image:', error);
       Alert.alert('Error', 'Failed to rotate image. Please try again.');
     }
   };
@@ -210,7 +244,7 @@ export default function CreatePostScreen() {
       };
       setMedia(updatedMedia);
     } catch (error) {
-      console.log('Error flipping image:', error);
+      console.error('Error flipping image:', error);
       Alert.alert('Error', 'Failed to flip image. Please try again.');
     }
   };
@@ -232,7 +266,7 @@ export default function CreatePostScreen() {
       };
       setMedia(updatedMedia);
     } catch (error) {
-      console.log('Error flipping image:', error);
+      console.error('Error flipping image:', error);
       Alert.alert('Error', 'Failed to flip image. Please try again.');
     }
   };
@@ -269,31 +303,130 @@ export default function CreatePostScreen() {
       };
       setMedia(updatedMedia);
     } catch (error) {
-      console.log('Error cropping image:', error);
+      console.error('Error cropping image:', error);
       Alert.alert('Error', 'Failed to crop image. Please try again.');
     }
   };
 
-  const handlePost = () => {
+  const uploadImage = async (uri: string, index: number): Promise<string | null> => {
+    try {
+      console.log(`Reading image file: ${uri}`);
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${userId}/${Date.now()}_${index}.${fileExt}`;
+      const contentType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
+
+      console.log(`Uploading image to: ${fileName}`);
+      const { data, error } = await supabase.storage
+        .from('post-images')
+        .upload(fileName, decode(base64), {
+          contentType,
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('Error uploading image:', error);
+        throw error;
+      }
+
+      console.log('Upload successful:', data);
+
+      const { data: urlData } = supabase.storage
+        .from('post-images')
+        .getPublicUrl(fileName);
+
+      console.log('Public URL:', urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Error in uploadImage:', error);
+      throw error;
+    }
+  };
+
+  const handlePost = async () => {
     if (!content.trim() && media.length === 0 && !music) {
       Alert.alert('Empty Post', 'Please add some content, media, or music to your post.');
       return;
     }
 
-    console.log('Creating post with content:', content);
-    console.log('Media items:', media.length);
-    console.log('Music:', music?.name || 'None');
-    
-    if (status.isPlaying) {
-      player.pause();
+    if (!userId) {
+      Alert.alert('Error', 'You must be logged in to create a post.');
+      return;
     }
-    
-    Alert.alert('Success', 'Post created successfully!', [
-      {
-        text: 'OK',
-        onPress: () => router.back(),
-      },
-    ]);
+
+    setIsPosting(true);
+
+    try {
+      console.log('Starting post creation...');
+      console.log('Content:', content);
+      console.log('Media count:', media.length);
+      console.log('Music:', music?.name);
+      
+      // Upload images to Supabase Storage
+      const imageUrls: string[] = [];
+      for (let i = 0; i < media.length; i++) {
+        if (media[i].type === 'image') {
+          console.log(`Uploading image ${i + 1}/${media.length}...`);
+          try {
+            const url = await uploadImage(media[i].uri, i);
+            if (url) {
+              imageUrls.push(url);
+              console.log(`Image ${i + 1} uploaded successfully`);
+            }
+          } catch (uploadError) {
+            console.error(`Failed to upload image ${i + 1}:`, uploadError);
+            Alert.alert('Upload Error', `Failed to upload image ${i + 1}. Please try again.`);
+            setIsPosting(false);
+            return;
+          }
+        }
+      }
+
+      console.log('All images uploaded:', imageUrls);
+
+      // Insert post into database
+      console.log('Inserting post into database...');
+      const postData = {
+        user_id: userId,
+        content: content.trim() || null,
+        images: imageUrls.length > 0 ? imageUrls : null,
+        music_uri: music?.uri || null,
+        music_name: music?.name || null,
+      };
+      console.log('Post data:', postData);
+
+      const { data, error } = await supabase
+        .from('posts')
+        .insert(postData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating post:', error);
+        throw error;
+      }
+
+      console.log('Post created successfully:', data);
+
+      if (status.isPlaying) {
+        player.pause();
+      }
+
+      Alert.alert('Success', 'Post created successfully!', [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ]);
+    } catch (error: any) {
+      console.error('Error in handlePost:', error);
+      Alert.alert('Error', `Failed to create post: ${error.message || 'Unknown error'}. Please try again.`);
+    } finally {
+      setIsPosting(false);
+    }
   };
 
   return (
@@ -307,8 +440,12 @@ export default function CreatePostScreen() {
             </TouchableOpacity>
           ),
           headerRight: () => (
-            <TouchableOpacity onPress={handlePost}>
-              <Text style={{ color: colors.primary, fontSize: 17, fontWeight: '600' }}>Post</Text>
+            <TouchableOpacity onPress={handlePost} disabled={isPosting}>
+              {isPosting ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={{ color: colors.primary, fontSize: 17, fontWeight: '600' }}>Post</Text>
+              )}
             </TouchableOpacity>
           ),
         }}
@@ -323,15 +460,21 @@ export default function CreatePostScreen() {
             value={content}
             onChangeText={setContent}
             maxLength={500}
+            editable={!isPosting}
           />
 
           {media.length > 0 && (
             <View style={styles.mediaContainer}>
+              <Text style={styles.mediaSectionTitle}>Selected Images ({media.length})</Text>
               <View style={styles.mediaGrid}>
                 {media.map((item, index) => (
                   <View key={index} style={styles.mediaItem}>
-                    <TouchableOpacity onPress={() => editImage(index)}>
-                      <Image source={{ uri: item.uri }} style={styles.mediaImage} />
+                    <TouchableOpacity onPress={() => editImage(index)} activeOpacity={0.8}>
+                      <Image 
+                        source={{ uri: item.uri }} 
+                        style={styles.mediaImage}
+                        resizeMode="cover"
+                      />
                       {item.type === 'video' && (
                         <View style={styles.videoOverlay}>
                           <IconSymbol
@@ -464,7 +607,11 @@ export default function CreatePostScreen() {
           )}
 
           <View style={styles.actionsContainer}>
-            <TouchableOpacity style={styles.actionButton} onPress={pickMedia}>
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={pickMedia}
+              disabled={isPosting}
+            >
               <IconSymbol
                 ios_icon_name="photo.on.rectangle"
                 android_material_icon_name="photo_library"
@@ -473,7 +620,11 @@ export default function CreatePostScreen() {
               />
               <Text style={styles.actionText}>Gallery</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={takePhoto}>
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={takePhoto}
+              disabled={isPosting}
+            >
               <IconSymbol
                 ios_icon_name="camera.fill"
                 android_material_icon_name="camera_alt"
@@ -482,7 +633,11 @@ export default function CreatePostScreen() {
               />
               <Text style={styles.actionText}>Camera</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={pickMusic}>
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={pickMusic}
+              disabled={isPosting}
+            >
               <IconSymbol
                 ios_icon_name="music.note"
                 android_material_icon_name="music_note"
@@ -519,6 +674,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
+  mediaSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
   mediaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -533,6 +694,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 8,
+    backgroundColor: colors.border,
   },
   videoOverlay: {
     position: 'absolute',
