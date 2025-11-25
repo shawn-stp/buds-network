@@ -11,6 +11,38 @@ export interface User {
   posts: string[];
 }
 
+export interface TextOverlay {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  color: string;
+  fontWeight: 'normal' | 'bold';
+}
+
+export interface StickerOverlay {
+  id: string;
+  emoji: string;
+  x: number;
+  y: number;
+  size: number;
+}
+
+export interface LinkOverlay {
+  id: string;
+  url: string;
+  label: string;
+  x: number;
+  y: number;
+}
+
+export interface ImageOverlays {
+  texts: TextOverlay[];
+  stickers: StickerOverlay[];
+  links: LinkOverlay[];
+}
+
 export interface Post {
   id: string;
   userId: string;
@@ -18,6 +50,7 @@ export interface Post {
   userProfilePicture: string;
   content: string;
   images: string[];
+  imageOverlays?: ImageOverlays[];
   music?: {
     uri: string;
     name: string;

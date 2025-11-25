@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import { Post } from '@/types';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Linking } from 'react-native';
+import { Post, ImageOverlays } from '@/types';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from './IconSymbol';
 import { useRouter } from 'expo-router';
@@ -30,6 +30,11 @@ export function PostCard({ post, onLike, onComment, currentUserId = '1' }: PostC
     onComment?.(post.id);
   };
 
+  const handleLinkPress = (url: string) => {
+    console.log('Link pressed:', url);
+    Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
+  };
+
   const formatTimestamp = (date: Date) => {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
@@ -39,6 +44,86 @@ export function PostCard({ post, onLike, onComment, currentUserId = '1' }: PostC
     if (days > 0) return `${days}d ago`;
     if (hours > 0) return `${hours}h ago`;
     return 'Just now';
+  };
+
+  const renderImageWithOverlays = (imageUri: string, overlays?: ImageOverlays) => {
+    return (
+      <View style={styles.imageWrapper}>
+        <Image
+          source={{ uri: imageUri }}
+          style={styles.postImage}
+          resizeMode="cover"
+        />
+        {overlays && (
+          <View style={styles.overlaysContainer}>
+            {overlays.texts.map((textOverlay) => (
+              <View
+                key={textOverlay.id}
+                style={[
+                  styles.textOverlay,
+                  {
+                    left: textOverlay.x,
+                    top: textOverlay.y,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    fontSize: textOverlay.fontSize,
+                    color: textOverlay.color,
+                    fontWeight: textOverlay.fontWeight,
+                    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+                    textShadowOffset: { width: 1, height: 1 },
+                    textShadowRadius: 3,
+                  }}
+                >
+                  {textOverlay.text}
+                </Text>
+              </View>
+            ))}
+            
+            {overlays.stickers.map((stickerOverlay) => (
+              <View
+                key={stickerOverlay.id}
+                style={[
+                  styles.stickerOverlay,
+                  {
+                    left: stickerOverlay.x,
+                    top: stickerOverlay.y,
+                  },
+                ]}
+              >
+                <Text style={{ fontSize: stickerOverlay.size }}>
+                  {stickerOverlay.emoji}
+                </Text>
+              </View>
+            ))}
+            
+            {overlays.links.map((linkOverlay) => (
+              <TouchableOpacity
+                key={linkOverlay.id}
+                style={[
+                  styles.linkOverlay,
+                  {
+                    left: linkOverlay.x,
+                    top: linkOverlay.y,
+                  },
+                ]}
+                onPress={() => handleLinkPress(linkOverlay.url)}
+              >
+                <IconSymbol
+                  ios_icon_name="link"
+                  android_material_icon_name="link"
+                  size={16}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.linkText}>{linkOverlay.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -57,16 +142,16 @@ export function PostCard({ post, onLike, onComment, currentUserId = '1' }: PostC
 
       {post.images.length > 0 && (
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: post.images[imageIndex] }}
-            style={styles.postImage}
-            resizeMode="cover"
-          />
+          {renderImageWithOverlays(
+            post.images[imageIndex],
+            post.imageOverlays?.[imageIndex]
+          )}
           {post.images.length > 1 && (
             <View style={styles.imageIndicators}>
               {post.images.map((_, index) => (
-                <View
+                <TouchableOpacity
                   key={index}
+                  onPress={() => setImageIndex(index)}
                   style={[
                     styles.indicator,
                     index === imageIndex && styles.activeIndicator,
@@ -160,10 +245,48 @@ const styles = StyleSheet.create({
     height: screenWidth - 32,
     marginBottom: 12,
   },
+  imageWrapper: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
   postImage: {
     width: '100%',
     height: '100%',
     backgroundColor: colors.border,
+  },
+  overlaysContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'box-none',
+  },
+  textOverlay: {
+    position: 'absolute',
+    padding: 8,
+    pointerEvents: 'none',
+  },
+  stickerOverlay: {
+    position: 'absolute',
+    padding: 4,
+    pointerEvents: 'none',
+  },
+  linkOverlay: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + 'CC',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  linkText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   imageIndicators: {
     position: 'absolute',

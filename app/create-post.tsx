@@ -12,6 +12,7 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,6 +24,8 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
+import ImageEditor from '@/components/ImageEditor';
+import { ImageOverlays } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_SIZE = (SCREEN_WIDTH - 48) / 3;
@@ -32,6 +35,7 @@ interface MediaItem {
   type: 'image' | 'video';
   width?: number;
   height?: number;
+  overlays?: ImageOverlays;
 }
 
 interface MusicItem {
@@ -44,6 +48,7 @@ export default function CreatePostScreen() {
   const [content, setContent] = useState('');
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
+  const [showImageEditor, setShowImageEditor] = useState(false);
   const [music, setMusic] = useState<MusicItem | null>(null);
   const [isPosting, setIsPosting] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -202,111 +207,27 @@ export default function CreatePostScreen() {
       return;
     }
     setSelectedMediaIndex(index);
+    setShowImageEditor(true);
   };
 
-  const rotateImage = async () => {
-    if (selectedMediaIndex === null) return;
-
-    try {
-      const manipResult = await manipulateAsync(
-        media[selectedMediaIndex].uri,
-        [{ rotate: 90 }],
-        { compress: 1, format: SaveFormat.PNG }
-      );
-
+  const handleImageEditorSave = (editedUri: string, overlays: ImageOverlays) => {
+    if (selectedMediaIndex !== null) {
       const updatedMedia = [...media];
       updatedMedia[selectedMediaIndex] = {
         ...updatedMedia[selectedMediaIndex],
-        uri: manipResult.uri,
-        width: manipResult.width,
-        height: manipResult.height,
+        uri: editedUri,
+        overlays: overlays,
       };
       setMedia(updatedMedia);
-    } catch (error) {
-      console.error('Error rotating image:', error);
-      Alert.alert('Error', 'Failed to rotate image. Please try again.');
+      console.log('Image edited with overlays:', overlays);
     }
+    setShowImageEditor(false);
+    setSelectedMediaIndex(null);
   };
 
-  const flipImageHorizontal = async () => {
-    if (selectedMediaIndex === null) return;
-
-    try {
-      const manipResult = await manipulateAsync(
-        media[selectedMediaIndex].uri,
-        [{ flip: FlipType.Horizontal }],
-        { compress: 1, format: SaveFormat.PNG }
-      );
-
-      const updatedMedia = [...media];
-      updatedMedia[selectedMediaIndex] = {
-        ...updatedMedia[selectedMediaIndex],
-        uri: manipResult.uri,
-      };
-      setMedia(updatedMedia);
-    } catch (error) {
-      console.error('Error flipping image:', error);
-      Alert.alert('Error', 'Failed to flip image. Please try again.');
-    }
-  };
-
-  const flipImageVertical = async () => {
-    if (selectedMediaIndex === null) return;
-
-    try {
-      const manipResult = await manipulateAsync(
-        media[selectedMediaIndex].uri,
-        [{ flip: FlipType.Vertical }],
-        { compress: 1, format: SaveFormat.PNG }
-      );
-
-      const updatedMedia = [...media];
-      updatedMedia[selectedMediaIndex] = {
-        ...updatedMedia[selectedMediaIndex],
-        uri: manipResult.uri,
-      };
-      setMedia(updatedMedia);
-    } catch (error) {
-      console.error('Error flipping image:', error);
-      Alert.alert('Error', 'Failed to flip image. Please try again.');
-    }
-  };
-
-  const cropImage = async () => {
-    if (selectedMediaIndex === null) return;
-
-    const currentMedia = media[selectedMediaIndex];
-    const width = currentMedia.width || 1000;
-    const height = currentMedia.height || 1000;
-
-    try {
-      const manipResult = await manipulateAsync(
-        currentMedia.uri,
-        [
-          {
-            crop: {
-              originX: width * 0.1,
-              originY: height * 0.1,
-              width: width * 0.8,
-              height: height * 0.8,
-            },
-          },
-        ],
-        { compress: 1, format: SaveFormat.PNG }
-      );
-
-      const updatedMedia = [...media];
-      updatedMedia[selectedMediaIndex] = {
-        ...updatedMedia[selectedMediaIndex],
-        uri: manipResult.uri,
-        width: manipResult.width,
-        height: manipResult.height,
-      };
-      setMedia(updatedMedia);
-    } catch (error) {
-      console.error('Error cropping image:', error);
-      Alert.alert('Error', 'Failed to crop image. Please try again.');
-    }
+  const handleImageEditorCancel = () => {
+    setShowImageEditor(false);
+    setSelectedMediaIndex(null);
   };
 
   const uploadImage = async (uri: string, index: number): Promise<string | null> => {
@@ -368,6 +289,8 @@ export default function CreatePostScreen() {
       
       // Upload images to Supabase Storage
       const imageUrls: string[] = [];
+      const imageOverlays: ImageOverlays[] = [];
+      
       for (let i = 0; i < media.length; i++) {
         if (media[i].type === 'image') {
           console.log(`Uploading image ${i + 1}/${media.length}...`);
@@ -375,6 +298,12 @@ export default function CreatePostScreen() {
             const url = await uploadImage(media[i].uri, i);
             if (url) {
               imageUrls.push(url);
+              // Store overlays for this image
+              if (media[i].overlays) {
+                imageOverlays.push(media[i].overlays!);
+              } else {
+                imageOverlays.push({ texts: [], stickers: [], links: [] });
+              }
               console.log(`Image ${i + 1} uploaded successfully`);
             }
           } catch (uploadError) {
@@ -387,6 +316,7 @@ export default function CreatePostScreen() {
       }
 
       console.log('All images uploaded:', imageUrls);
+      console.log('Image overlays:', imageOverlays);
 
       // Insert post into database
       console.log('Inserting post into database...');
@@ -394,6 +324,7 @@ export default function CreatePostScreen() {
         user_id: userId,
         content: content.trim() || null,
         images: imageUrls.length > 0 ? imageUrls : null,
+        image_overlays: imageOverlays.length > 0 ? imageOverlays : null,
         music_uri: music?.uri || null,
         music_name: music?.name || null,
       };
@@ -431,7 +362,6 @@ export default function CreatePostScreen() {
   };
 
   const handleCancel = () => {
-    // Return to home feed
     router.replace('/(tabs)/(home)');
   };
 
@@ -490,6 +420,16 @@ export default function CreatePostScreen() {
                           ios_icon_name="play.circle.fill"
                           android_material_icon_name="play_circle"
                           size={40}
+                          color="white"
+                        />
+                      </View>
+                    )}
+                    {item.overlays && (item.overlays.texts.length > 0 || item.overlays.stickers.length > 0 || item.overlays.links.length > 0) && (
+                      <View style={styles.editedBadge}>
+                        <IconSymbol
+                          ios_icon_name="wand.and.stars"
+                          android_material_icon_name="auto_fix_high"
+                          size={16}
                           color="white"
                         />
                       </View>
@@ -565,56 +505,6 @@ export default function CreatePostScreen() {
           </View>
         )}
 
-        {selectedMediaIndex !== null && media[selectedMediaIndex].type === 'image' && (
-          <View style={styles.editingTools}>
-            <Text style={styles.editingTitle}>Edit Image</Text>
-            <View style={styles.editingButtons}>
-              <TouchableOpacity style={styles.editButton} onPress={rotateImage}>
-                <IconSymbol
-                  ios_icon_name="rotate.right"
-                  android_material_icon_name="rotate_right"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={styles.editButtonText}>Rotate</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.editButton} onPress={flipImageHorizontal}>
-                <IconSymbol
-                  ios_icon_name="arrow.left.and.right"
-                  android_material_icon_name="flip"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={styles.editButtonText}>Flip H</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.editButton} onPress={flipImageVertical}>
-                <IconSymbol
-                  ios_icon_name="arrow.up.and.down"
-                  android_material_icon_name="flip"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={styles.editButtonText}>Flip V</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.editButton} onPress={cropImage}>
-                <IconSymbol
-                  ios_icon_name="crop"
-                  android_material_icon_name="crop"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={styles.editButtonText}>Crop</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={styles.doneEditingButton}
-              onPress={() => setSelectedMediaIndex(null)}
-            >
-              <Text style={styles.doneEditingText}>Done Editing</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         <View style={styles.actionsContainer}>
           <TouchableOpacity 
             style={styles.actionButton} 
@@ -659,6 +549,16 @@ export default function CreatePostScreen() {
 
         <Text style={styles.characterCount}>{content.length}/500</Text>
       </ScrollView>
+
+      <Modal visible={showImageEditor} animationType="slide" presentationStyle="fullScreen">
+        {selectedMediaIndex !== null && (
+          <ImageEditor
+            imageUri={media[selectedMediaIndex].uri}
+            onSave={handleImageEditorSave}
+            onCancel={handleImageEditorCancel}
+          />
+        )}
+      </Modal>
     </View>
   );
 }
@@ -739,6 +639,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 8,
   },
+  editedBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 4,
+  },
   removeButton: {
     position: 'absolute',
     top: 4,
@@ -801,46 +709,6 @@ const styles = StyleSheet.create({
   progressBar: {
     height: '100%',
     backgroundColor: colors.primary,
-  },
-  editingTools: {
-    backgroundColor: colors.cardBackground,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  editingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  editingButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 12,
-  },
-  editButton: {
-    alignItems: 'center',
-    padding: 8,
-  },
-  editButtonText: {
-    fontSize: 12,
-    color: colors.text,
-    marginTop: 4,
-  },
-  doneEditingButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  doneEditingText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
   },
   actionsContainer: {
     flexDirection: 'row',
