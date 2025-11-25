@@ -15,7 +15,6 @@ import { Stack, useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { generateCaptcha, verifyCaptcha } from '@/utils/authUtils';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -23,8 +22,7 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateOfBirthText, setDateOfBirthText] = useState('');
   const [captchaInput, setCaptchaInput] = useState('');
   const [captcha, setCaptcha] = useState(generateCaptcha());
   const [showPassword, setShowPassword] = useState(false);
@@ -33,6 +31,53 @@ export default function SignUpScreen() {
   const refreshCaptcha = () => {
     setCaptcha(generateCaptcha());
     setCaptchaInput('');
+  };
+
+  const parseDateOfBirth = (dateString: string): Date | null => {
+    // Remove any non-numeric characters except /
+    const cleaned = dateString.replace(/[^\d/]/g, '');
+    
+    // Try to parse MM/DD/YYYY format
+    const parts = cleaned.split('/');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const month = parseInt(parts[0], 10);
+    const day = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+
+    // Validate ranges
+    if (isNaN(month) || isNaN(day) || isNaN(year)) {
+      return null;
+    }
+
+    if (month < 1 || month > 12) {
+      return null;
+    }
+
+    if (day < 1 || day > 31) {
+      return null;
+    }
+
+    // Year should be 4 digits and reasonable
+    if (year < 1900 || year > new Date().getFullYear()) {
+      return null;
+    }
+
+    // Create date object (month is 0-indexed in JavaScript)
+    const date = new Date(year, month - 1, day);
+
+    // Verify the date is valid (handles cases like 02/31/2020)
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      return null;
+    }
+
+    return date;
   };
 
   const calculateAge = (birthDate: Date): number => {
@@ -47,19 +92,34 @@ export default function SignUpScreen() {
     return age;
   };
 
-  const formatDate = (date: Date): string => {
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${month}/${day}/${year}`;
+  const formatDateInput = (text: string) => {
+    // Remove any non-numeric characters
+    const cleaned = text.replace(/\D/g, '');
+    
+    // Format as MM/DD/YYYY
+    let formatted = cleaned;
+    if (cleaned.length >= 2) {
+      formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+    }
+    if (cleaned.length >= 4) {
+      formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4) + '/' + cleaned.slice(4, 8);
+    }
+    
+    return formatted;
   };
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios');
-    
-    if (selectedDate) {
-      setDateOfBirth(selectedDate);
+  const handleDateChange = (text: string) => {
+    const formatted = formatDateInput(text);
+    setDateOfBirthText(formatted);
+  };
+
+  const getAgeDisplay = (): string | null => {
+    const date = parseDateOfBirth(dateOfBirthText);
+    if (date) {
+      const age = calculateAge(date);
+      return `Age: ${age} years old`;
     }
+    return null;
   };
 
   const handleSignUp = () => {
@@ -79,8 +139,17 @@ export default function SignUpScreen() {
       return;
     }
 
-    if (!dateOfBirth) {
+    if (!dateOfBirthText.trim()) {
       Alert.alert('Error', 'Please enter your date of birth');
+      return;
+    }
+
+    const dateOfBirth = parseDateOfBirth(dateOfBirthText);
+    if (!dateOfBirth) {
+      Alert.alert(
+        'Invalid Date',
+        'Please enter a valid date in MM/DD/YYYY format (e.g., 01/15/1990)'
+      );
       return;
     }
 
@@ -119,14 +188,6 @@ export default function SignUpScreen() {
       params: { email, companyName },
     });
   };
-
-  // Maximum date is 21 years ago from today
-  const maxDate = new Date();
-  maxDate.setFullYear(maxDate.getFullYear() - 21);
-
-  // Minimum date is 100 years ago from today
-  const minDate = new Date();
-  minDate.setFullYear(minDate.getFullYear() - 100);
 
   return (
     <>
@@ -199,37 +260,30 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Date of Birth (Must be 21+)</Text>
-              <TouchableOpacity
-                style={styles.inputContainer}
-                onPress={() => setShowDatePicker(true)}
-              >
+              <View style={styles.inputContainer}>
                 <IconSymbol
                   ios_icon_name="calendar"
                   android_material_icon_name="calendar-today"
                   size={20}
                   color={colors.textSecondary}
                 />
-                <Text style={[styles.input, !dateOfBirth && styles.placeholderText]}>
-                  {dateOfBirth ? formatDate(dateOfBirth) : 'Select your date of birth'}
-                </Text>
-              </TouchableOpacity>
-              {dateOfBirth && (
+                <TextInput
+                  style={styles.input}
+                  value={dateOfBirthText}
+                  onChangeText={handleDateChange}
+                  placeholder="MM/DD/YYYY (e.g., 01/15/1990)"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={10}
+                  autoCorrect={false}
+                />
+              </View>
+              {getAgeDisplay() && (
                 <Text style={styles.ageText}>
-                  Age: {calculateAge(dateOfBirth)} years old
+                  {getAgeDisplay()}
                 </Text>
               )}
             </View>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={dateOfBirth || maxDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleDateChange}
-                maximumDate={maxDate}
-                minimumDate={minDate}
-              />
-            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
