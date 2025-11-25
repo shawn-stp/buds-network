@@ -9,6 +9,7 @@ export const colors = {
   secondary: '#E91E63',
   accent: '#03A9F4',
   card: '#FFFFFF',
+  cardBackground: '#FFFFFF',
   highlight: '#FFD54F',
   border: '#E0E0E0',
   success: '#4CAF50',
