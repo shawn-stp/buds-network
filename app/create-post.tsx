@@ -64,12 +64,12 @@ export default function CreatePostScreen() {
         setUserId(user.id);
       } else {
         Alert.alert('Error', 'You must be logged in to create a post.');
-        router.back();
+        router.replace('/(tabs)/(home)');
       }
     } catch (error) {
       console.error('Error checking user:', error);
       Alert.alert('Error', 'Failed to verify user. Please try again.');
-      router.back();
+      router.replace('/(tabs)/(home)');
     }
   };
 
@@ -419,7 +419,7 @@ export default function CreatePostScreen() {
       Alert.alert('Success', 'Post created successfully!', [
         {
           text: 'OK',
-          onPress: () => router.back(),
+          onPress: () => router.replace('/(tabs)/(home)'),
         },
       ]);
     } catch (error: any) {
@@ -430,10 +430,15 @@ export default function CreatePostScreen() {
     }
   };
 
+  const handleCancel = () => {
+    // Return to home feed
+    router.replace('/(tabs)/(home)');
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+        <TouchableOpacity onPress={handleCancel} style={styles.headerButton}>
           <IconSymbol
             ios_icon_name="xmark"
             android_material_icon_name="close"

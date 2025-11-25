@@ -63,12 +63,12 @@ export default function CreatePostScreen() {
         setUserId(user.id);
       } else {
         Alert.alert('Error', 'You must be logged in to create a post.');
-        router.back();
+        router.replace('/(tabs)/(home)');
       }
     } catch (error) {
       console.error('Error checking user:', error);
       Alert.alert('Error', 'Failed to verify user. Please try again.');
-      router.back();
+      router.replace('/(tabs)/(home)');
     }
   };
 
@@ -418,7 +418,7 @@ export default function CreatePostScreen() {
       Alert.alert('Success', 'Post created successfully!', [
         {
           text: 'OK',
-          onPress: () => router.back(),
+          onPress: () => router.replace('/(tabs)/(home)'),
         },
       ]);
     } catch (error: any) {
@@ -429,13 +429,18 @@ export default function CreatePostScreen() {
     }
   };
 
+  const handleCancel = () => {
+    // Return to home feed
+    router.replace('/(tabs)/(home)');
+  };
+
   return (
     <>
       <Stack.Screen
         options={{
           title: 'Create Post',
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={handleCancel}>
               <Text style={{ color: colors.primary, fontSize: 17 }}>Cancel</Text>
             </TouchableOpacity>
           ),

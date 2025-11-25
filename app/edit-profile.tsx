@@ -249,11 +249,8 @@ export default function EditProfileScreen() {
           {
             text: 'OK',
             onPress: () => {
-              if (isNewProfile) {
-                router.replace('/(tabs)');
-              } else {
-                router.back();
-              }
+              // Always navigate to home feed after profile creation/update
+              router.replace('/(tabs)/(home)');
             },
           },
         ]
@@ -273,13 +270,19 @@ export default function EditProfileScreen() {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Skip',
-            onPress: () => router.replace('/(tabs)'),
+            onPress: () => router.replace('/(tabs)/(home)'),
           },
         ]
       );
     } else {
-      router.back();
+      // Return to home feed instead of going back
+      router.replace('/(tabs)/(home)');
     }
+  };
+
+  const handleBack = () => {
+    // Always return to home feed
+    router.replace('/(tabs)/(home)');
   };
 
   if (isLoadingProfile) {
@@ -298,6 +301,13 @@ export default function EditProfileScreen() {
           title: isNewProfile ? 'Create Your Profile' : 'Edit Profile',
           headerShown: true,
           headerBackTitle: 'Back',
+          headerLeft: () => (
+            !isNewProfile ? (
+              <TouchableOpacity onPress={handleBack} disabled={isLoading}>
+                <Text style={styles.backButton}>Back</Text>
+              </TouchableOpacity>
+            ) : undefined
+          ),
           headerRight: () => (
             isNewProfile ? (
               <TouchableOpacity onPress={handleSkip} disabled={isLoading}>
@@ -464,6 +474,12 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 24 : 20,
     paddingBottom: 40,
     paddingHorizontal: 20,
+  },
+  backButton: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   skipButton: {
     fontSize: 16,

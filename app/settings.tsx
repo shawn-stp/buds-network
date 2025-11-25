@@ -208,6 +208,11 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleBack = () => {
+    // Return to home feed
+    router.replace('/(tabs)/(home)');
+  };
+
   return (
     <>
       <Stack.Screen
@@ -215,6 +220,11 @@ export default function SettingsScreen() {
           title: 'Account Settings',
           headerShown: true,
           headerBackTitle: 'Back',
+          headerLeft: () => (
+            <TouchableOpacity onPress={handleBack}>
+              <Text style={styles.backButton}>Back</Text>
+            </TouchableOpacity>
+          ),
         }}
       />
       <View style={styles.container}>
@@ -387,6 +397,12 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingTop: Platform.OS === 'android' ? 16 : 0,
     paddingBottom: 32,
+  },
+  backButton: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   section: {
     marginBottom: 24,
