@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { View, StyleSheet, FlatList, RefreshControl, Text } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { PostCard } from '@/components/PostCard';
@@ -9,6 +9,7 @@ import { Post } from '@/types';
 import { supabase } from '@/lib/supabase';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedSegment, setSelectedSegment] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -281,6 +282,25 @@ export default function HomeScreen() {
 
   const handleComment = (postId: string) => {
     console.log('Open comments for post:', postId);
+    router.push({
+      pathname: '/comments-modal',
+      params: { postId },
+    });
+  };
+
+  const handleShare = (postId: string) => {
+    console.log('Share post:', postId);
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      router.push({
+        pathname: '/share-modal',
+        params: {
+          postId: post.id,
+          userName: post.userName,
+          content: post.content.substring(0, 100),
+        },
+      });
+    }
   };
 
   const handleRefresh = () => {
@@ -333,6 +353,7 @@ export default function HomeScreen() {
                 post={item}
                 onLike={handleLike}
                 onComment={handleComment}
+                onShare={handleShare}
                 currentUserId={currentUserId || ''}
               />
             )}

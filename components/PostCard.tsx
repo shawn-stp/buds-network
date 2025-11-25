@@ -12,10 +12,11 @@ interface PostCardProps {
   post: Post;
   onLike?: (postId: string) => void;
   onComment?: (postId: string) => void;
+  onShare?: (postId: string) => void;
   currentUserId?: string;
 }
 
-export function PostCard({ post, onLike, onComment, currentUserId = '1' }: PostCardProps) {
+export function PostCard({ post, onLike, onComment, onShare, currentUserId = '1' }: PostCardProps) {
   const router = useRouter();
   const [imageIndex, setImageIndex] = useState(0);
   const isLiked = post.likes.includes(currentUserId);
@@ -27,7 +28,32 @@ export function PostCard({ post, onLike, onComment, currentUserId = '1' }: PostC
 
   const handleComment = () => {
     console.log('Comment pressed for post:', post.id);
-    onComment?.(post.id);
+    if (onComment) {
+      onComment(post.id);
+    } else {
+      // Navigate to comments modal
+      router.push({
+        pathname: '/comments-modal',
+        params: { postId: post.id },
+      });
+    }
+  };
+
+  const handleShare = () => {
+    console.log('Share pressed for post:', post.id);
+    if (onShare) {
+      onShare(post.id);
+    } else {
+      // Navigate to share modal
+      router.push({
+        pathname: '/share-modal',
+        params: {
+          postId: post.id,
+          userName: post.userName,
+          content: post.content.substring(0, 100),
+        },
+      });
+    }
   };
 
   const handleLinkPress = (url: string) => {
@@ -184,7 +210,7 @@ export function PostCard({ post, onLike, onComment, currentUserId = '1' }: PostC
           <Text style={styles.actionText}>{post.comments.length}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
           <IconSymbol
             ios_icon_name="paperplane"
             android_material_icon_name="send"

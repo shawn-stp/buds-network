@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, FlatList, Platform, TouchableOpacity, RefreshControl, Text } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { PostCard } from '@/components/PostCard';
 import { SegmentedControl } from '@/components/SegmentedControl';
@@ -10,6 +10,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/lib/supabase';
 
 export default function HomeScreen() {
+  const routerHook = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedSegment, setSelectedSegment] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -282,6 +283,25 @@ export default function HomeScreen() {
 
   const handleComment = (postId: string) => {
     console.log('Open comments for post:', postId);
+    routerHook.push({
+      pathname: '/comments-modal',
+      params: { postId },
+    });
+  };
+
+  const handleShare = (postId: string) => {
+    console.log('Share post:', postId);
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      routerHook.push({
+        pathname: '/share-modal',
+        params: {
+          postId: post.id,
+          userName: post.userName,
+          content: post.content.substring(0, 100),
+        },
+      });
+    }
   };
 
   const handleRefresh = () => {
@@ -319,6 +339,7 @@ export default function HomeScreen() {
               post={item}
               onLike={handleLike}
               onComment={handleComment}
+              onShare={handleShare}
               currentUserId={currentUserId || ''}
             />
           )}
