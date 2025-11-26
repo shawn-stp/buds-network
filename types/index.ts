@@ -76,6 +76,7 @@ export interface Product {
   product_type: string;
   images: string[];
   price: number;
+  testing_file?: string;
   created_at: string;
 }
 

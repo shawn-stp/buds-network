@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform, ActivityIndicator, Dimensions, Alert, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -16,6 +16,7 @@ interface Product {
   product_type: string;
   images: string[];
   price: number | null;
+  testing_file?: string;
   created_at: string;
 }
 
@@ -105,6 +106,22 @@ export default function ProductDetailScreen() {
       pathname: '/user-profile',
       params: { userId: product.user_id }
     });
+  };
+
+  const handleOpenTestingFile = async () => {
+    if (!product?.testing_file) return;
+
+    try {
+      const supported = await Linking.canOpenURL(product.testing_file);
+      if (supported) {
+        await Linking.openURL(product.testing_file);
+      } else {
+        Alert.alert('Error', 'Cannot open this file type');
+      }
+    } catch (error) {
+      console.error('Error opening testing file:', error);
+      Alert.alert('Error', 'Failed to open testing file');
+    }
   };
 
   const formatPrice = (price: number | null | undefined): string => {
@@ -236,6 +253,40 @@ export default function ProductDetailScreen() {
             <Text style={styles.sectionTitle}>Description</Text>
             <Text style={styles.description}>{product.description}</Text>
           </View>
+
+          {/* Testing File Section */}
+          {product.testing_file && (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.testingFileSection}>
+                <Text style={styles.sectionTitle}>Testing Results</Text>
+                <TouchableOpacity
+                  style={styles.testingFileCard}
+                  onPress={handleOpenTestingFile}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.testingFileIcon}>
+                    <IconSymbol
+                      ios_icon_name="doc.fill"
+                      android_material_icon_name="description"
+                      size={28}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <View style={styles.testingFileInfo}>
+                    <Text style={styles.testingFileTitle}>View Testing Results</Text>
+                    <Text style={styles.testingFileSubtitle}>PDF Document</Text>
+                  </View>
+                  <IconSymbol
+                    ios_icon_name="arrow.down.circle"
+                    android_material_icon_name="download"
+                    size={24}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
           <View style={styles.divider} />
 
@@ -437,6 +488,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     lineHeight: 24,
+  },
+  testingFileSection: {
+    marginBottom: 20,
+  },
+  testingFileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.05)',
+    elevation: 2,
+  },
+  testingFileIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${colors.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  testingFileInfo: {
+    flex: 1,
+  },
+  testingFileTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  testingFileSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   sellerSection: {
     marginTop: 0,
